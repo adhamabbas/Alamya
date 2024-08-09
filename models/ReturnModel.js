@@ -65,13 +65,18 @@ ReturnSchema.statics.updateProductWeightR = async function (productId, weightRet
   });
 };
 
-ReturnSchema.statics.addToWarehouse = async function (product_code, weightReturned) {
-  const product = await Warehouse.findOne({ product_code });
-  if (!product) {
+ReturnSchema.statics.addToWarehouse = async function (product_code, weightReturned,size_o2,product2,user2) {
+  const product1 = await Warehouse.findOne({ product_code });
+  if (!product1) {
     // إذا لم يكن المنتج موجودًا في المخزن، نقوم بإضافته
     const newProduct = new Warehouse({
       product_code: product_code,
       weight: weightReturned,
+      size:size_o2,
+      user:user2,
+      product:product2,
+      supplayr:"66a1f4aa1502d5461f330455",
+
     });
     await newProduct.save();
   } else {
@@ -93,11 +98,11 @@ ReturnSchema.statics.deleteSellRecord = async function (sellId) {
 
 ReturnSchema.post('save', async function () {
   await this.constructor.updateProductWeightR(this.product, this.o_wieght);
-  await this.constructor.addToWarehouse(this.product_code, this.o_wieght);
+  await this.constructor.addToWarehouse(this.product_code, this.o_wieght,this.size_o,this.product,this.user);
   await this.constructor.updateClientFinancials(this.clint, this.refund_amount , this.price_allQuantity);
   await this.constructor.deleteSellRecord(this.sell);
 });
 
 const Return = mongoose.model('Return', ReturnSchema);
 
-module.exports = Return;
+module.exports = Return;wight_money
