@@ -105,4 +105,4 @@ ReturnSchema.post('save', async function () {
 
 const Return = mongoose.model('Return', ReturnSchema);
 
-module.exports = Return;wight_money
+module.exports = Return;
