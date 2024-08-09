@@ -3,6 +3,7 @@ const Sell_bell = require('../models/Sell_bellModel');
 const Buy = require('../models/BuyModel');
 const Clint = require('../models/ClintModel');
 const Supplier = require('../models/SupplayrModel');
+const Product = require('../models/ProductModel');
 
 exports.generateReport = async (startDate, endDate) => {
   let matchStage = {};
@@ -122,6 +123,16 @@ exports.generateReport = async (startDate, endDate) => {
   // حساب إجمالي الربح (إجمالي المبيعات - إجمالي المشتريات)
   const totalProfit = totalSales.length > 0 ? totalSales[0].totalAmount - totalPurchases : 0;
 
+  // حساب إجمالي wight_money لجميع المنتجات
+  const totalWightMoney = await Product.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalWightMoney: { $sum: '$wight_money' }
+      }
+    }
+  ]);
+
   return {
     totalSales: totalSales.length > 0 ? totalSales[0].totalAmount : 0,
     totalWeightSold: totalSales.length > 0 ? totalSales[0].totalWeight : 0,
@@ -130,6 +141,7 @@ exports.generateReport = async (startDate, endDate) => {
     totalPaidToSuppliers,
     totalDueToSuppliers: totalDueToSuppliers.length > 0 ? totalDueToSuppliers[0].totalDue : 0,
     totalPurchases,
-    totalProfit
+    totalProfit,
+    totalWightMoney: totalWightMoney.length > 0 ? totalWightMoney[0].totalWightMoney : 0  // إضافة إجمالي wight_money
   };
 };
