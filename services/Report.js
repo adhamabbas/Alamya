@@ -5,42 +5,9 @@ const Clint = require('../models/ClintModel');
 const Supplier = require('../models/SupplayrModel');
 const Product = require('../models/ProductModel');
 
-exports.generateReport = async (startDate, endDate) => {
-  let matchStage = {};
-
-  // تحديد تاريخ البداية والنهاية
-  if (startDate && endDate) {
-    matchStage = {
-      $match: {
-        createdAt: {
-          $gte: new Date(startDate),
-          $lte: new Date(endDate)
-        }
-      }
-    };
-  } else if (startDate) {
-    matchStage = {
-      $match: {
-        createdAt: {
-          $gte: new Date(startDate)
-        }
-      }
-    };
-  } else {
-    // إذا لم يتم توفير أي من تاريخ البداية أو النهاية، استخدم تاريخ اليوم فقط
-    matchStage = {
-      $match: {
-        createdAt: {
-          $gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          $lte: new Date()
-        }
-      }
-    };
-  }
-
+exports.generateReport = async () => {
   // حساب إجمالي المبيعات
   const totalSales = await Sell.aggregate([
-    matchStage,
     {
       $group: {
         _id: null,
@@ -52,7 +19,6 @@ exports.generateReport = async (startDate, endDate) => {
 
   // حساب الأموال المدفوعة من العملاء باستخدام Sell و Sell_bell
   const totalPaidByClientsFromSell = await Sell.aggregate([
-    matchStage,
     {
       $group: {
         _id: null,
@@ -62,7 +28,6 @@ exports.generateReport = async (startDate, endDate) => {
   ]);
 
   const totalPaidByClientsFromSellBell = await Sell_bell.aggregate([
-    matchStage,
     {
       $group: {
         _id: null,
@@ -86,7 +51,6 @@ exports.generateReport = async (startDate, endDate) => {
 
   // حساب الأموال المدفوعة للموردين باستخدام Buy فقط
   const totalPaidToSuppliersFromBuy = await Buy.aggregate([
-    matchStage,
     {
       $group: {
         _id: null,
@@ -109,7 +73,6 @@ exports.generateReport = async (startDate, endDate) => {
 
   // حساب إجمالي المشتريات من الموردين باستخدام Buy فقط
   const totalPurchasesFromBuy = await Buy.aggregate([
-    matchStage,
     {
       $group: {
         _id: null,
