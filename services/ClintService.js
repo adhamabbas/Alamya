@@ -190,7 +190,7 @@ exports.exportClientDetailsToExcel = asyncHandler(async (req, res, next) => {
   res.end();
 });
 
-const { GoogleSpreadsheet } = require('google-spreadsheet');
+const GoogleSpreadsheet  = require('google-spreadsheet');
 const creds = require('../credentials.json');  // مسار ملف JSON الذي يحتوي على بيانات اعتمادك
 
 exports.exportClientDetailsToGoogleSheet = asyncHandler(async (req, res, next) => {
