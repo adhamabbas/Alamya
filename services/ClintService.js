@@ -3,6 +3,8 @@ const asyncHandler = require('express-async-handler');
 const ApiError = require('../utils/apiError');
 const ExcelJS = require('exceljs');
 const factory = require('./handlersFactory');
+const {GoogleSpreadsheet}  = require('google-spreadsheet');
+const creds = require('../credentials.json');  // مسار ملف JSON الذي يحتوي على بيانات اعتمادك
 const Clint = require('../models/ClintModel');
 const Sell = require('../models/sellModel');
 const Sell_bell = require('../models/Sell_bellModel');
@@ -190,8 +192,6 @@ exports.exportClientDetailsToExcel = asyncHandler(async (req, res, next) => {
   res.end();
 });
 
-const {GoogleSpreadsheet}  = require('google-spreadsheet');
-const creds = require('../credentials.json');  // مسار ملف JSON الذي يحتوي على بيانات اعتمادك
 
 exports.exportClientDetailsToGoogleSheet = asyncHandler(async (req, res, next) => {
   const { clientId } = req.params;
@@ -201,10 +201,10 @@ exports.exportClientDetailsToGoogleSheet = asyncHandler(async (req, res, next) =
   
   // المصادقة باستخدام بيانات الاعتماد
     
-  await doc.useServiceAccountAuth(JSON.stringify({
+  await doc.useServiceAccountAuth({
     client_email: creds.client_email,
     private_key: creds.private_key,
-}));
+});
   
 
   
