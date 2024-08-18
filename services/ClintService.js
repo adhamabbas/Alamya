@@ -189,3 +189,97 @@ exports.exportClientDetailsToExcel = asyncHandler(async (req, res, next) => {
 
   res.end();
 });
+
+const { GoogleSpreadsheet } = require('google-spreadsheet');
+const creds = require('../credentials.json');  // مسار ملف JSON الذي يحتوي على بيانات اعتمادك
+
+exports.exportClientDetailsToGoogleSheet = asyncHandler(async (req, res, next) => {
+  const { clientId } = req.params;
+
+  // قم بتحميل جدول البيانات باستخدام معرّف Google Sheets
+  const doc = new GoogleSpreadsheet('1AelZU5Uqq3r_422OMQdMH2JtkHX20NitwBK4QXdNnWs');
+  
+  // المصادقة باستخدام بيانات الاعتماد
+  await doc.useServiceAccountAuth(creds);
+  
+  // تحميل معلومات جدول البيانات
+  await doc.loadInfo();
+  
+  // اختيار الورقة التي تريد الكتابة فيها (يمكنك استخدام الاسم أو الفهرس)
+  const sheet = doc.sheetsByIndex[0];  // مثلا الورقة الأولى
+
+  // جلب بيانات العميل
+  const bell = await Sell_bell.find({ clint: clientId }).populate({ path: 'clint', select: 'clint_name' });
+  const sela = await Sell.find({ clint: clientId }).populate({ path: 'clint', select: 'clint_name' });
+  const tax = await clint_tax.find({ clint: clientId }).populate({ path: 'clint', select: 'clint_name' });
+  const chBack = await check_back.find({ clint: clientId }).populate({ path: 'clint', select: 'clint_name' });
+
+  if (!bell.length && !sela.length && !tax.length && !chBack.length) {
+    return next(new ApiError(`No transactions found for client with ID: ${clientId}`, 404));
+  }
+
+  // كتابة بيانات المبيعات إلى Google Sheets
+  await sheet.addRow(['مبيعات']);
+  await sheet.addRow(['العميل', 'النوع', 'وزن البكرة', 'مقاس', 'سعر', 'المدفوع', 'تاريخ الإنشاء']);
+  sela.forEach(async (sll) => {
+    await sheet.addRow([
+      sll.clint.clint_name,
+      sll.product.type,
+      sll.o_wieght,
+      sll.size_o,
+      sll.price_allQuantity,
+      sll.pay_now,
+      sll.createdAt.toLocaleString(),
+    ]);
+  });
+
+  // إضافة صف فارغ للفصل بين الأقسام
+  await sheet.addRow([]);
+
+  // كتابة بيانات الفواتير إلى Google Sheets
+  await sheet.addRow(['فواتير']);
+  await sheet.addRow(['العميل', 'مبلغ الفاتورة', 'طريقة الدفع', 'رقم الشيك', 'تاريخ الشيك', 'تاريخ الإنشاء']);
+  bell.forEach(async (sale) => {
+    await sheet.addRow([
+      sale.clint.clint_name,
+      sale.payBell,
+      sale.paymentMethod,
+      sale.checkNumber,
+      sale.checkDate,
+      sale.createdAt.toLocaleString(),
+    ]);
+  });
+
+  // إضافة صف فارغ للفصل بين الأقسام
+  await sheet.addRow([]);
+
+  // كتابة بيانات الضرائب إلى Google Sheets
+  await sheet.addRow(['الضريبة']);
+  await sheet.addRow(['العميل', 'مبلغ', 'نسبة خصم', 'الضريبة', 'تاريخ الإنشاء']);
+  tax.forEach(async (t) => {
+    await sheet.addRow([
+      t.clint.clint_name,
+      t.amount,
+      t.discountRate,
+      t.taxRate,
+      t.createdAt.toLocaleString(),
+    ]);
+  });
+
+  // إضافة صف فارغ للفصل بين الأقسام
+  await sheet.addRow([]);
+
+  // كتابة بيانات الشيكات المرتجعة إلى Google Sheets
+  await sheet.addRow(['الشيكات المرتجعة']);
+  await sheet.addRow(['العميل', 'مبلغ الشيك', 'تاريخ']);
+  chBack.forEach(async (ch) => {
+    await sheet.addRow([
+      ch.clint.clint_name,
+      ch.checkAmount,
+      ch.checkDate,
+      ch.createdAt.toLocaleString(),
+    ]);
+  });
+
+  res.status(200).json({ message: "تم تصدير بيانات العميل إلى Google Sheets بنجاح" });
+});
