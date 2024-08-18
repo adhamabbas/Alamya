@@ -200,13 +200,9 @@ exports.exportClientDetailsToGoogleSheet = asyncHandler(async (req, res, next) =
   const doc = new GoogleSpreadsheet('1AelZU5Uqq3r_422OMQdMH2JtkHX20NitwBK4QXdNnWs');
   
   // المصادقة باستخدام بيانات الاعتماد
-  console.log('doc done');
-  await doc.useServiceAccountAuth({
-    client_email: creds.client_email,
-    private_key: creds.private_key.replace(/\\n/g, '\n')
-
-  });
-
+    
+  await doc.useServiceAccountAuth(JSON.stringify(creds));
+  
 
   
   // تحميل معلومات جدول البيانات
@@ -287,6 +283,7 @@ exports.exportClientDetailsToGoogleSheet = asyncHandler(async (req, res, next) =
       ch.createdAt.toLocaleString(),
     ]);
   });
+  
 
   res.status(200).json({ message: "تم تصدير بيانات العميل إلى Google Sheets بنجاح" });
 });
