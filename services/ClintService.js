@@ -200,7 +200,12 @@ exports.exportClientDetailsToGoogleSheet = asyncHandler(async (req, res, next) =
   const doc = new GoogleSpreadsheet('1AelZU5Uqq3r_422OMQdMH2JtkHX20NitwBK4QXdNnWs');
   
   // المصادقة باستخدام بيانات الاعتماد
-  await doc.useServiceAccountAuth(creds);
+  await doc.useServiceAccountAuth({
+    client_email: creds.client_email,
+    private_key: creds.private_key,
+  });
+
+
   
   // تحميل معلومات جدول البيانات
   await doc.loadInfo();
