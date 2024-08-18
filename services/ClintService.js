@@ -202,7 +202,8 @@ exports.exportClientDetailsToGoogleSheet = asyncHandler(async (req, res, next) =
   // المصادقة باستخدام بيانات الاعتماد
   await doc.useServiceAccountAuth({
     client_email: creds.client_email,
-    private_key: creds.private_key,
+    private_key: creds.private_key.replace(/\\n/g, '\n')
+
   });
 
 
