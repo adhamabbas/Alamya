@@ -89,7 +89,7 @@ exports.deleteBuy = asyncHandler(async (req, res, next) => {
   if (supplayr) {
     
     supplayr.price_pay -= oldDocument2.pay;
-    supplayr.price_on -= (oldDocument2.price_all - oldDocument2.pay_bell);
+    supplayr.price_on -= (oldDocument2.price_all - oldDocument2.pay);
     supplayr.total_price -= oldDocument2.price_all;
     await supplayr.save();
 }
