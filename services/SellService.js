@@ -83,9 +83,9 @@ exports.deleteSell = asyncHandler(async (req, res, next) => {
   }
   const clint = await Clint.findById(oldDocument1.clint);
   if (clint) {
-    const on = oldDocument1.price_allQuantity - oldDocument1.pay_now;
+  
     clint.money_pay -= oldDocument1.pay_now;
-    clint.money_on -= on ;
+    clint.money_on -= (oldDocument1.price_allQuantity - oldDocument1.pay_now) ;
     clint.total_monye -= oldDocument1.price_allQuantity;
     await clint.save();
 }
