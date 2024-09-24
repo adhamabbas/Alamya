@@ -87,9 +87,9 @@ exports.deleteBuy = asyncHandler(async (req, res, next) => {
   }
   const supplayr = await Supplayr.findById(oldDocument2.supplayr);
   if (supplayr) {
-    
+    const On = oldDocument2.price_all - oldDocument2.pay;
     supplayr.price_pay -= oldDocument2.pay;
-    supplayr.price_on -= (oldDocument2.price_all - oldDocument2.pay);
+    supplayr.price_on -= On ;
     supplayr.total_price -= oldDocument2.price_all;
     await supplayr.save();
 }

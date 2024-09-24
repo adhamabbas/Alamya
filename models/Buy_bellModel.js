@@ -42,6 +42,10 @@ const Buy_bellSchema = new mongoose.Schema(
       return this.payment_method === 'check';
       },
      },
+     Entry_date: {
+      type: Date,
+      default: Date.now,
+    },
       Notes: {
       type:String,
       trim: true,

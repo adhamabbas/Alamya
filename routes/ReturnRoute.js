@@ -17,20 +17,20 @@ router
   .route('/')
   .get(
        authService.protect,
-       authService.allowedTo('admin'),getReturns)
+       authService.allowedTo('admin', 'storage_employee'),getReturns)
   .post(
     authService.protect,
-    authService.allowedTo('admin'),
+    authService.allowedTo('admin', 'storage_employee'),
     createReturn
   );
 
 router
   .route('/:id')
   .get(authService.protect,
-    authService.allowedTo('admin'),getReturn)
+    authService.allowedTo('admin', 'storage_employee'),getReturn)
   .put(
     authService.protect,
-    authService.allowedTo('admin'),
+    authService.allowedTo('admin', 'storage_employee'),
     updateReturn
   )
   .delete(

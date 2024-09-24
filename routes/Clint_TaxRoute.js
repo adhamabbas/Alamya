@@ -27,7 +27,7 @@ router
   .route('/:id')
   .get(
     authService.protect,
-    authService.allowedTo('admin','manger'),getTax_clint)
+    authService.allowedTo('admin','manager'),getTax_clint)
   .put(
     authService.protect,
     authService.allowedTo('admin'),

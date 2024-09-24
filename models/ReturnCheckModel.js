@@ -21,6 +21,10 @@ const ReturnedCheckSchema = new mongoose.Schema(
      num:{
        type:Number,
      },
+     bank_name: {
+      type: String,
+      required: true,
+      },
     date: {
       type: Date,
       default: Date.now,

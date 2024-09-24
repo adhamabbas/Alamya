@@ -3,8 +3,6 @@ const asyncHandler = require('express-async-handler');
 const ApiError = require('../utils/apiError');
 const ExcelJS = require('exceljs');
 const factory = require('./handlersFactory');
-const {GoogleSpreadsheet}  = require('google-spreadsheet');
-const creds = require('../credentials.json');  // مسار ملف JSON الذي يحتوي على بيانات اعتمادك
 const Clint = require('../models/ClintModel');
 const Sell = require('../models/sellModel');
 const Sell_bell = require('../models/Sell_bellModel');
@@ -63,230 +61,268 @@ exports.getClientDetails = asyncHandler(async (req, res, next) => {
 exports.exportClientDetailsToExcel = asyncHandler(async (req, res, next) => {
   const { clientId } = req.params;
 
-  // Get all sales for the client
+  // الحصول على جميع المبيعات والفواتير الضريبية وغيرها للعميل
   const bell = await Sell_bell.find({ clint: clientId })
-    .populate({ path: 'clint', select: 'clint_name' });
+    .populate({ path: 'clint', select: 'clint_name money_on' });
 
-  // Get all purchases for the client
   const sela = await Sell.find({ clint: clientId })
-    .populate({ path: 'clint', select: 'clint_name' });
+    .populate({ path: 'clint', select: 'clint_name money_on' });
 
   const tax = await clint_tax.find({ clint: clientId })
-    .populate({ path: 'clint', select: 'clint_name' });
-  
+    .populate({ path: 'clint', select: 'clint_name money_on' });
+
   const chBack = await check_back.find({ clint: clientId })
-    .populate({ path: 'clint', select: 'clint_name' });
+    .populate({ path: 'clint', select: 'clint_name money_on' });
 
   if (!bell.length && !sela.length && !tax.length && !chBack.length) {
-    return next(new ApiError(`لا توجد معاملات للعميل مع هذا المعرف: ${clientId}`, 404));
+    return next(new ApiError(` معاملات للعميل مع هذا المعرف:غير موجود ${clientId}, 404`));
+  }
+  
+  
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet(sela[0]?.clint.clint_name || 'عميل');
+
+  // تهيئة مصفوفة لتخزين جميع البيانات للترتيب حسب التاريخ
+  const allEntries = [];
+
+  const money = sela[0]?.clint.money_on;
+  
+  // خريطة لتجميع المبيعات حسب التاريخ والنوع
+  const salesMap = {};
+
+  // تجميع بيانات المبيعات
+  sela.forEach(sll => {
+    const entryDate = sll.entry_date.toLocaleDateString('ar-EG', { dateStyle: 'short' });
+    const productType = sll.product.type;
+    const PriceForKilo =sll.priceForKilo;
+    const Note = sll.Notes;
+    // إنشاء مفتاح فريد لكل تاريخ ونوع منتج
+    const key = `${entryDate}-${productType}`;
+
+    if (!salesMap[key]) {
+      salesMap[key] = {
+        date: sll.entry_date,
+        type: productType,
+        totalWeight: 0,
+        totalPrice: 0,
+        PriceforKilo:PriceForKilo,
+        Notes: Note,
+      };
+    }
+
+    // جمع الوزن والسعر لنفس التاريخ والنوع
+    salesMap[key].totalWeight += sll.o_wieght;
+    salesMap[key].totalPrice += sll.allForall;
+  });
+
+  // إضافة المبيعات المجمعة إلى المصفوفة
+  Object.values(salesMap).forEach(sale => {
+    allEntries.push({
+      type: 'sale',
+      date: sale.date,
+      row: [
+        sale.date.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+        sale.type,
+        sale.totalWeight,
+        sale.PriceforKilo, // سعر الكيلو غير مطلوب الآن
+        sale.totalPrice,
+        sale.Notes,
+        'مبيعات',
+      ],
+      color: 'FF4CAF50' // اللون الأخضر للمبيعات
+    });
+  });
+
+  // باقي العمليات لا تحتاج تعديل
+  // تجميع بيانات الفواتير الضريبية
+  bell.forEach(bl => {
+    allEntries.push({
+      type: 'bell',
+      date: bl.createdAt,
+      row: [
+        bl.Entry_date.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+        bl.paymentMethod,
+        bl.payBell,
+        bl.bankName,
+        bl.checkNumber,
+        bl.Notes,
+        'تحصيلات',
+      ],
+      color: 'FFFF9800' // اللون البرتقالي للتحصيلات
+    });
+  });
+
+  // تجميع بيانات الضرائب
+  tax.forEach(t => {
+    allEntries.push({
+      type: 'tax',
+      date: t.createdAt,
+      row: [
+        t.entryDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+        t.amount,
+        t.taxRate,
+        t.discountRate,
+        t.netAmount,
+        t.bell_num,
+        t.company_name,
+        t.Notes,
+        'فواتير ضريبية',
+      ],
+      color: 'FFF44336' // اللون الأحمر للضرائب
+    });
+  });
+
+  // تجميع بيانات الشيكات المرتدة
+  chBack.forEach(ch => {
+    allEntries.push({
+      type: 'checkBack',
+      date: ch.createdAt,
+      row: [
+        ch.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+        '',
+        ch.amount,
+        ch.num,
+        'شيك مرتد',
+      ],
+      color: 'FF3F51B5' // اللون الأزرق للشيكات المرتدة
+    });
+  });
+
+  // ترتيب جميع الإدخالات حسب التاريخ
+  allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // إضافة صف الرأس إلى الورقة
+  worksheet.addRow(['التاريخ', 'الصنف', 'الكمية', 'السعر', 'القيمة','رقم الفاتورة','الملاحظات']);
+
+  // إضافة البيانات المرتبة إلى الورقة
+  allEntries.forEach(entry => {
+    const row = worksheet.addRow(entry.row);
+    row.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: entry.color } };
+  });
+
+  // إضافة الصف الأخير للرصيد المتبقي
+  const finalRow = worksheet.addRow(['', '', '', '', 'الرصيد المتبقي:']);
+  finalRow.font = { bold: true };
+  finalRow.alignment = { horizontal: 'right' };
+
+  const finalBalanceRow = worksheet.addRow(['', '', '', '', money]);
+  finalBalanceRow.font = { bold: true, color: { argb: 'FF000000' } };
+  finalBalanceRow.alignment = { horizontal: 'right' };
+
+  // تعديل عرض الأعمدة والمحاذاة
+  for (let i = 1; i <= 8; i++) {
+    worksheet.getColumn(i).width = 30;
+    worksheet.getColumn(i).alignment = { horizontal: 'center' };
   }
 
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Client Details');
-
-  // Add header for sales section
-  const salesHeader = worksheet.addRow(['مبيعات']);
-  salesHeader.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  salesHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4CAF50' } };
-
-  // Add columns for sales section
-  worksheet.addRow([
-    'العميل', 'النوع', 'وزن البكرة', 'مقاس', 'سعر', 'المدفوع', 'تاريخ الإنشاء'
-  ]);
-  sela.forEach(sll => {
-    worksheet.addRow([
-      sll.clint.clint_name,
-      sll.product.type,
-      sll.o_wieght,
-      sll.size_o,
-      sll.price_allQuantity,
-      sll.pay_now,
-      sll.createdAt.toLocaleString(),
-    ]);
-  });
-
-  // Set column widths for sales section
-  worksheet.columns = [
-    { key: 'clint', width: 25 },
-    { key: 'product', width: 20 },
-    { key: 'o_wieght', width: 20 },
-    { key: 'size_o', width: 15 },
-    { key: 'price_allQuantity', width: 20 },
-    { key: 'pay_now', width: 20 },
-    { key: 'createdAt', width: 25 },
-  ];
-
-  // Add an empty row to separate sections
-  worksheet.addRow([]);
-
-  // Add header for bell section
-  const bellHeader = worksheet.addRow(['فواتير']);
-  bellHeader.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  bellHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF9800' } };
-
-  // Add columns for bell section
-  worksheet.addRow([
-    'العميل', 'مبلغ الفاتورة', 'طريقة الدفع', 'رقم الشيك', 'تاريخ الشيك', 'تاريخ الإنشاء'
-  ]);
-  bell.forEach(sale => {
-    worksheet.addRow([
-      sale.clint.clint_name,
-      sale.payBell,
-      sale.paymentMethod,
-      sale.checkNumber,
-      sale.checkDate,
-      sale.createdAt.toLocaleString(),
-    ]);
-  });
-
-  // Add an empty row to separate sections
-  worksheet.addRow([]);
-
-  // Add header for tax section
-  const taxHeader = worksheet.addRow(['الضريبة']);
-  taxHeader.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  taxHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF44336' } };
-
-  // Add columns for tax section
-  worksheet.addRow([
-    'العميل', 'مبلغ', 'نسبة خصم', 'الضريبة', 'تاريخ الإنشاء'
-  ]);
-  tax.forEach(t => {
-    worksheet.addRow([
-      t.clint.clint_name,
-      t.amount,
-      t.discountRate,
-      t.taxRate,
-      t.createdAt.toLocaleString(),
-    ]);
-  });
-
-  // Add an empty row to separate sections
-  worksheet.addRow([]);
-
-  // Add header for check back section
-  const checkBackHeader = worksheet.addRow(['الشيكات المرتجعة']);
-  checkBackHeader.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  checkBackHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3F51B5' } };
-
-  // Add columns for check back section
-  worksheet.addRow([
-    'العميل', 'مبلغ الشيك', 'تاريخ'
-  ]);
-  chBack.forEach(ch => {
-    worksheet.addRow([
-      ch.clint.clint_name,
-      ch.checkAmount,
-      ch.checkDate,
-      ch.createdAt.toLocaleString(),
-    ]);
-  });
-
-  // Set response headers
+  // إعداد رؤوس الاستجابة
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename=client_${clientId}_details.xlsx`);
-
-  // Write to response
+  res.setHeader('Content-Disposition',`attachment; filename=client_${clientId}_details.xlsx`);
+  
+  // كتابة الملف إلى الاستجابة
   await workbook.xlsx.write(res);
-
   res.end();
 });
 
 
-exports.exportClientDetailsToGoogleSheet = asyncHandler(async (req, res, next) => {
+
+exports.exportClintCheakToExcel = asyncHandler(async (req, res, next) => {
   const { clientId } = req.params;
 
-  // قم بتحميل جدول البيانات باستخدام معرّف Google Sheets
-  const doc = new GoogleSpreadsheet('1AelZU5Uqq3r_422OMQdMH2JtkHX20NitwBK4QXdNnWs');
-  
-  // المصادقة باستخدام بيانات الاعتماد
-    
-  await doc.useServiceAccountAuth(JSON.stringify({
-    client_email: "elalmia@lunar-clone-426314-v1.iam.gserviceaccount.com",
-    private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCI6Ad2mtjh7XoS\nQY6a0OMJby5I4GwkEbS3WNyVW6fPcgESsfU8JoAxqgB5vD915UxeYZCLyzzf3zyU\n1DYSOx4Jzyxwndot8yzz93cnWJ6bV+1g2EaFOCMYgGaViiamTtLUdStmY7wvhA3i\nwg12kTpo3TdLJBncmbdNmtOfdQVR7x+HiqDEaAErksMwlr71V8rzbfxfCczVxMDV\nPIY29DUnQxzqzFJ1WT2HDxpmCeO9rO50aAmrEmjoG6w67VtmGSnBdr5X14gRzcHB\nlcAk8dr0yEw/qcRwtpNykoF/T4lqdQ46Wjt+iuH9k4rKVN7gjpCjZ4+DdaBLqwqH\nleEP/dDZAgMBAAECggEAAZN3biDbUTYbf+UzzlBY/YvDXJdPmPzml7uLTIfeom3f\nGWQL9rpaiVfTtt/ZJ8Y91Xjp9R+f+4bIt7QXf3W63PHyD186oTYWfoqxTmlmTm0A\nc7gBqQWld8h9bDuUwgWpxsRzihn1uZYbiWovXzEatK7WDl4jxkbM73Tr4NiaX1NT\nht3kfsjGfNLrC1jTrFK6JFNcJBlv4r8hf1HoLe8o0mBjtgGLRljDSUAFk7fE9/2V\nevydDucIJE1NFVrP+vly/vyqhpDn7sslnz0MWcUg/ZvSTWf2Wi44b7iDGqk0dJdw\nkR0LlkwkwNleHHJoF1h0BWbumzQSpNzyKZfgv6euwQKBgQC8iRjlOVNQtac/d4pB\nq5ZUxPoEmuR5Ghkc3WeP09hKPFnA12Isi2z7tyhnWDzQ9hRZnPoUVPSLH3l9l70z\nT+7vs5v+ublDv0P4WEbujt47G0TjEeALL+4QxKLBCgQoZfwV7AnpGx+oafBa9DS+\nf93Eiz8Fo6Bwxm+owKCmjPyFuQKBgQC55WmvxthVdIs1ltrobawyuUSpNeBZL0nE\nBD/h5SyX21mTudDD1iC0bhboWP7fhaGd/wNlhvK9nydwKH3MThMpvM3D5i3XkgyB\nKHlSfNrrn8HGLVeFzC9nTJ67Dh8B35K4swUT0fnS6v0AXFIPu7tpjdVeT4KUPEO8\nza4CDf80IQKBgQCAd+b34y0LdQxm6dzSzMoeLy6yTp1ai9cK3S9BSTg7tY3vIpSq\nB8OWbgLhELY4KUZKnfWmPxF3b1YIp4nr2g7VVQz58LH2IPF+2yBSVBXILtes5rRE\nyz8sO+EvKtUUdhHlGjbSmYHj73QxdfAu0tBZqgyimhGsZvsVAVU2yCEWOQKBgEcA\n4UVKZgb95M4rOKHegg89xIP9GBv4e+xq0xutNUMrfSN3rc2fVA6WnhlRJMirefen\nF90Hll/nEmE8lhAbIiam/tD8cjYMisoqc2yWU+f7tT/EwdFRFCoYkehQlHdatefm\nOOJBKXLuXoRsvstToVnH2t+S7wU/n3/V78jJH9kBAoGATdDdXBhY7jahdP9gX5hQ\nOKC6O4rmhp5bwX72hGqAoGD8zDhgCNBEyZYVYbugvRDjWaL6JjUHBp1WSm3nsxI0\nnEK8Zd8uVai1oaGWok4TbxTSH6MRBhTAK9T212ZJktZhUKmpu5a4NRdD0B93CGDZ\n13AfaQu19ayYt0LFbAR8BfY=\n-----END PRIVATE KEY-----\n",
-  }));
-
-  
-  // تحميل معلومات جدول البيانات
-  await doc.loadInfo();
-  
-  // اختيار الورقة التي تريد الكتابة فيها (يمكنك استخدام الاسم أو الفهرس)
-  const sheet = doc.sheetsByTitle[clientId];
- // مثلا الورقة الأولى
-
-  // جلب بيانات العميل
-  const bell = await Sell_bell.find({ clint: clientId }).populate({ path: 'clint', select: 'clint_name' });
-  const sela = await Sell.find({ clint: clientId }).populate({ path: 'clint', select: 'clint_name' });
-  const tax = await clint_tax.find({ clint: clientId }).populate({ path: 'clint', select: 'clint_name' });
-  const chBack = await check_back.find({ clint: clientId }).populate({ path: 'clint', select: 'clint_name' });
-
-  if (!bell.length && !sela.length && !tax.length && !chBack.length) {
-    return next(new ApiError(`No transactions found for client with ID: ${clientId}`, 404));
+  if (!mongoose.Types.ObjectId.isValid(clientId)) {
+    return next(new ApiError('Invalid supplier ID', 400));
   }
 
-  // كتابة بيانات المبيعات إلى Google Sheets
-  await sheet.addRow(['مبيعات']);
-  await sheet.addRow(['العميل', 'النوع', 'وزن البكرة', 'مقاس', 'سعر', 'المدفوع', 'تاريخ الإنشاء']);
-  sela.forEach(async (sll) => {
-    await sheet.addRow([
-      sll.clint.clint_name,
-      sll.product.type,
-      sll.o_wieght,
-      sll.size_o,
-      sll.price_allQuantity,
-      sll.pay_now,
-      sll.createdAt.toLocaleString(),
-    ]);
+  // الحصول على جميع المبيعات والمشتريات للمورد باستخدام الشيكات فقط
+const bell = await Sell_bell.find({ 
+  clint: clientId,
+  paymentMethod: 'check' // فقط الفواتير المدفوعة بواسطة الشيكات
+})
+.populate({ path: 'clint', select: 'clint_name' });
+
+const chBack = await check_back.find({ clint: clientId })
+    .populate({ path: 'clint', select: 'clint_name money_on' });
+
+if (!bell.length &&!chBack.length) {
+  return next(new ApiError(`No transactions found for supplier with ID: ${clientId}, 404`));
+}
+
+// باقي الكود يظل كما هو
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet(bell[0]?.clint.clint_name || 'عميل');
+
+  // تهيئة مصفوفة لتخزين جميع البيانات للترتيب حسب التاريخ
+  const allEntries = [];
+  
+   money = bell[0]?.clint.money_on; ;
+  
+  // تجميع بيانات الفواتير
+  bell.forEach(bl => {
+    allEntries.push({
+      type: 'bell',
+      date: bl.Entry_date,
+      row: [
+        bl.Entry_date.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+        bl.payBell,
+        bl.bankName,
+        bl.checkNumber,
+        bl.checkDate,
+        bl.Notes,
+      ],
+      color: '808080' // اللون البرتقالي للتحصيلات
+    });
   });
-
-  // إضافة صف فارغ للفصل بين الأقسام
-  await sheet.addRow([]);
-
-  // كتابة بيانات الفواتير إلى Google Sheets
-  await sheet.addRow(['فواتير']);
-  await sheet.addRow(['العميل', 'مبلغ الفاتورة', 'طريقة الدفع', 'رقم الشيك', 'تاريخ الشيك', 'تاريخ الإنشاء']);
-  bell.forEach(async (sale) => {
-    await sheet.addRow([
-      sale.clint.clint_name,
-      sale.payBell,
-      sale.paymentMethod,
-      sale.checkNumber,
-      sale.checkDate,
-      sale.createdAt.toLocaleString(),
-    ]);
-  });
-
-  // إضافة صف فارغ للفصل بين الأقسام
-  await sheet.addRow([]);
-
-  // كتابة بيانات الضرائب إلى Google Sheets
-  await sheet.addRow(['الضريبة']);
-  await sheet.addRow(['العميل', 'مبلغ', 'نسبة خصم', 'الضريبة', 'تاريخ الإنشاء']);
-  tax.forEach(async (t) => {
-    await sheet.addRow([
-      t.clint.clint_name,
-      t.amount,
-      t.discountRate,
-      t.taxRate,
-      t.createdAt.toLocaleString(),
-    ]);
-  });
-
-  // إضافة صف فارغ للفصل بين الأقسام
-  await sheet.addRow([]);
-
-  // كتابة بيانات الشيكات المرتجعة إلى Google Sheets
-  await sheet.addRow(['الشيكات المرتجعة']);
-  await sheet.addRow(['العميل', 'مبلغ الشيك', 'تاريخ']);
-  chBack.forEach(async (ch) => {
-    await sheet.addRow([
-      ch.clint.clint_name,
-      ch.checkAmount,
-      ch.checkDate,
-      ch.createdAt.toLocaleString(),
-    ]);
+ 
+  chBack.forEach(ch => {
+    allEntries.push({
+      type: 'checkBack',
+      date: ch.createdAt,
+      row: [
+        ch.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+        ch.amount,
+        ch.bank_name,
+        ch.date,
+        ch.num,
+        'شيك مرتد',
+      ],
+      color: 'FF3F51B5' // اللون الأزرق للشيكات المرتدة
+    });
   });
   
 
-  res.status(200).json({ message: "تم تصدير بيانات العميل إلى Google Sheets بنجاح" });
+  // ترتيب جميع الإدخالات حسب التاريخ
+  allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // إضافة صف الرأس إلى الورقة
+  worksheet.addRow(['التاريخ', 'المبلغ', 'اسم البنك', 'رقم الشيك', 'تاريخ الشيك','الملاحظات']);
+
+  // إضافة البيانات المرتبة إلى الورقة
+  allEntries.forEach(entry => {
+    const row = worksheet.addRow(entry.row);
+    row.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: entry.color } };
+  });
+ 
+ 
+  const finalRow = worksheet.addRow(['', '', '', '', 'الرصيد المتبقي:']);
+  finalRow.font = { bold: true };
+  finalRow.alignment = { horizontal: 'right' };
+
+  const finalBalanceRow = worksheet.addRow(['', '', '', '', money]);
+  finalBalanceRow.font = { bold: true, color: { argb: 'FF000000' } };
+  finalBalanceRow.alignment = { horizontal: 'right' };
+
+  for (let i = 1; i <= 6; i++) {
+    worksheet.getColumn(i).width = 30;
+    worksheet.getColumn(i).alignment = { horizontal: 'center' };
+  }
+  // إعداد رؤوس الاستجابة
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename=supplier_${clientId}_details.xlsx`);
+
+  // كتابة الملف إلى الاستجابة
+  await workbook.xlsx.write(res);
+  res.end();
 });

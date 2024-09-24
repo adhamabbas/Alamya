@@ -47,7 +47,7 @@ const Sell_supplayrSchema = new mongoose.Schema(
 
 Sell_supplayrSchema.pre(/^find/, function (next) {
   this.populate({ path: 'user', select: 'name -_id' })
-    .populate({ path: 'product', select: 'type avg_price weight wight_money -_id' })
+    .populate({ path: 'product', select: 'type avg_price weight -_id' })
     .populate({ path: 'supplayr', select: 'supplayr_name priceOn_sell pricePay_sell -_id' });
 
   next();

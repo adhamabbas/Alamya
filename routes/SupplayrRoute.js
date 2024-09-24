@@ -8,6 +8,7 @@ const {
   deleteSupplayr,
   getSupplayrDetails,
   exportSupplayrDetailsToExcel,
+  exportSupplayrCheakToExcel,
 } = require('../services/SupplayrService');
 
 const authService = require('../services/authService');
@@ -45,4 +46,9 @@ router
  router
   .route('/:supplayrId/exportToExcel')
   .get(exportSupplayrDetailsToExcel);
+
+  router
+  .route('/:supplayrId/exportCheak')
+  .get(exportSupplayrCheakToExcel);
+
 module.exports = router;

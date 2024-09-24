@@ -26,6 +26,10 @@ const taxSchema = new mongoose.Schema(
       type: Number,
       default:0,
     },
+    bell_num: {
+      type: Number,
+      default:0,
+    },
     netAmount: {
       type: Number,
       
@@ -37,6 +41,16 @@ const taxSchema = new mongoose.Schema(
     discountAmount: {
       type: Number,
       
+    },
+    company_name: {
+      type:String,
+      trim: true,
+      default:'',
+      
+    },
+    entryDate: {
+      type: Date,
+      default: Date.now,
     },
      Notes: {
       type:String,

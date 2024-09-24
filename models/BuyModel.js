@@ -43,6 +43,10 @@ const BuySchema = new mongoose.Schema(
       required: true,
       default: 0,
     },
+    Entry_date: {
+      type: Date,
+      default: Date.now,
+    },
     Notes: {
       type:String,
       trim: true,

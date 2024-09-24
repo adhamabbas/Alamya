@@ -67,6 +67,10 @@ const SellSchema = new mongoose.Schema(
       required: true,
       default: 0,
     },
+    entry_date: {
+      type: Date,
+      default: Date.now,
+    },
     Notes: {
       type:String,
       trim: true,
@@ -97,7 +101,6 @@ SellSchema.pre('save', async function (next) {
   if (clint) {
     clint.total_monye += tax.allForall;
     clint.money_on+=  (tax.allForall - tax.pay_now);
-    clint.disCount = (clint.disCount || 0) + 1;
     await clint.save();
     }
   
