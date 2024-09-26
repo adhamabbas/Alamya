@@ -87,7 +87,7 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
   
 
   
-  exports.exportChecksToExcel = asyncHandler(async (req, res, next) => {
+  exports.exportAllClientsCheakToExcel = asyncHandler(async (req, res, next) => {
     // الحصول على جميع العملاء
     const allClients = await Clint.find();
   
@@ -153,7 +153,6 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
             date: bl.Entry_date,
             row: [
               bl.Entry_date.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
-              bl.clint_name,
               bl.payBell,
               bl.bankName,
               bl.checkNumber,
@@ -201,7 +200,10 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
         row.alignment = { horizontal: 'center' };
       });
   
-      
+      // إضافة الرصيد المتبقي في نهاية الجدول
+      const finalRow = worksheet.addRow(['', '', '', '', 'الرصيد المتبقي:']);
+      finalRow.font = { bold: true };
+      finalRow.alignment = { horizontal: 'right' };
   
       const finalBalanceRow = worksheet.addRow(['', '', '', '', money]);
       finalBalanceRow.font = { bold: true, color: { argb: 'FF000000' } };
@@ -216,7 +218,7 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
   
     // إعداد رؤوس الاستجابة
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition',`attachment; filename=all_clients_details.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename=all_clients_details.xlsx`);
   
     // كتابة الملف إلى الاستجابة
     await workbook.xlsx.write(res);
