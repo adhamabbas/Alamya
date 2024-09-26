@@ -148,7 +148,7 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
         } else if (!isReturnedCheck) {
           allEntries.push({
             type: 'bell',
-            date: bl.checkDate, // استخدام تاريخ الشيك لترتيب الشيكات
+            date: bl.checkDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }), // استخدام تاريخ الشيك لترتيب الشيكات
             row: [
               client.clint_name, // إضافة اسم العميل هنا
               bl.checkDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
