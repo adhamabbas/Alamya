@@ -165,10 +165,11 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
   
       // إضافة بيانات الشيكات المرتدة التي لم تظهر بعد
       chBack.forEach(ch => {
+
         if (!seenCheckNumbers.has(ch.num)) {
           allEntries.push({
             type: 'checkBack',
-            date: ch.createdAt,
+            date: ch.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
             row: [
               client.clint_name, // إضافة اسم العميل هنا
               ch.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
