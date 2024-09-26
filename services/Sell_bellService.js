@@ -87,7 +87,7 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
   
 
   
-  exports.exportAllClientsCheakToExcel = asyncHandler(async (req, res, next) => {
+  exports.exportChecksToExcel = asyncHandler(async (req, res, next) => {
     // الحصول على جميع العملاء
     const allClients = await Clint.find();
   
