@@ -50,7 +50,7 @@ router
   );
 
 router
-  .route('/clint/Checks')
+  .route('/clint/checks')
   .get(exportChecksToExcel);
 
 module.exports = router;
