@@ -49,8 +49,8 @@ router
     deleteSell_bell
   );
 
-  router
-  .route('/clint_Checks')
-  .get(exportChecksToExcel)
+router
+  .route('/clint/Checks')
+  .get(exportChecksToExcel);
 
 module.exports = router;
