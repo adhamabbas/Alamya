@@ -20,9 +20,8 @@ const router = express.Router();
 
 router
   .route('/')
-  .get(//authService.protect,
-       //authService.allowedTo('admin','bill_employee'),
-       getSell_bells)
+  .get(authService.protect,
+       authService.allowedTo('admin','bill_employee'),getSell_bells)
   .post(
     authService.protect,
     authService.allowedTo('admin','bill_employee'),
