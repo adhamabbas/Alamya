@@ -123,7 +123,8 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
       const seenCheckNumbers = new Set(); // لتتبع الشيكات المتشابهة
   
       bell.forEach(bl => {
-        const isReturnedCheck = chBack.some(ch => ch.num === bl.checkNumber); // التحقق إذا كان الشيك مرتدًا
+        const isReturnedCheck = chBack.some(ch => ch.num === bl.checkNumber);
+      // التحقق إذا كان الشيك مرتدًا
   
         // إذا كان الشيك مرتدًا، نضيفه مرة واحدة فقط بتاريخ ارتداد الشيك
         if (isReturnedCheck && !seenCheckNumbers.has(bl.checkNumber)) {
@@ -146,13 +147,13 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
   
           seenCheckNumbers.add(bl.checkNumber); // إضافة رقم الشيك إلى القائمة
         } else if (!isReturnedCheck) {
-          const chdate = checkDate.toLocaleDateString('ar-EG', { dateStyle: 'short' });
+          
           allEntries.push({
             type: 'bell',
-            date: bl.chdate, // استخدام تاريخ الشيك لترتيب الشيكات
+            date: bl.checkDate, // استخدام تاريخ الشيك لترتيب الشيكات
             row: [
               client.clint_name, // إضافة اسم العميل هنا
-              bl.chdate,
+              bl.checkDate,
               bl.payBell,
               bl.bankName,
               bl.checkNumber,
