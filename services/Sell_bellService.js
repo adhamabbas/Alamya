@@ -87,78 +87,138 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
   
 
   
-  // دالة لإنشاء ملف إكسيل مع تمييز الشيكات المرتدة
-  exports.exportChecksToExcel = asyncHandler(async (req, res) => {
-    // البحث عن جميع الشيكات المرتدة من نموذج ReturnedCheck
-    const returnedChecks = await ReturnedCheck.find().select('num');
+  exports.exportChecksToExcel = asyncHandler(async (req, res, next) => {
+    // الحصول على جميع العملاء
+    const allClients = await Clint.find();
   
-    // استخراج أرقام الشيكات المرتدة
-    const returnedCheckNumbers = returnedChecks.map(check => check.num);
-  
-    // البحث عن جميع الشيكات في نموذج Sell_bell
-    const checks = await Sell_bell.find({ paymentMethod: 'check' })
-      .populate({ path: 'user', select: 'name _id' })
-      .populate({ path: 'clint', select: 'clint_name _id' })
-      .select('clint bankName checkNumber checkDate payBell');
-  
-    // التحقق إذا كانت هناك أي شيكات
-    if (checks.length === 0) {
-      return res.status(404).json({ message: 'لا توجد أي شيكات للعملاء.' });
+    if (!allClients.length) {
+      return next(new ApiError('No clients found', 404));
     }
   
-    // تجهيز بيانات الإكسيل
-    const data = [['Client Name', 'Bank Name', 'Check Number', 'Check Date', 'Check Amount']]; // عنوان الأعمدة
+    // إعداد Workbook جديد
+    const workbook = new ExcelJS.Workbook();
   
-    checks.forEach(check => {
-      const isReturned = returnedCheckNumbers.includes(check.checkNumber); // التحقق إذا كان الشيك مرتدًا
-      const row = [
-        check.clint.clint_name,
-        check.bankName,
-        check.checkNumber,
-        check.checkDate,
-        check.payBell
-      ];
+    for (const client of allClients) {
+      // الحصول على جميع الفواتير الخاصة بالعميل
+      const bell = await Sell_bell.find({ 
+        clint: client._id,
+        paymentMethod: 'check' // فقط الفواتير المدفوعة بواسطة الشيكات
+      }).populate({ path: 'clint', select: 'clint_name' });
   
-      // إضافة معلومات الشيك إلى البيانات
-      data.push({
-        row,
-        isReturned, // تحديد إذا كان الشيك مرتدًا لتلوينه لاحقًا
+      // الحصول على الشيكات المرتدة الخاصة بالعميل
+      const chBack = await check_back.find({ clint: client._id })
+          .populate({ path: 'clint', select: 'clint_name money_on' });
+  
+      if (!bell.length && !chBack.length) {
+        continue; // الانتقال للعميل التالي إذا لم يكن هناك بيانات
+      }
+  
+      // إنشاء ورقة عمل جديدة لكل عميل
+      const worksheet = workbook.addWorksheet(client.clint_name || 'عميل');
+  
+      // تهيئة مصفوفة لتخزين جميع البيانات للترتيب حسب التاريخ
+      const allEntries = [];
+  
+      // أخذ الرصيد المتبقي من العميل
+      let money = client.money_on;
+  
+      // تجميع بيانات الفواتير
+      const seenCheckNumbers = new Set(); // لتتبع الشيكات المتشابهة
+  
+      bell.forEach(bl => {
+        const isReturnedCheck = chBack.some(ch => ch.num === bl.checkNumber); // التحقق إذا كان الشيك مرتدًا
+  
+        // إذا كان الشيك مرتدًا، نضيفه مرة واحدة فقط بتاريخ ارتداد الشيك
+        if (isReturnedCheck && !seenCheckNumbers.has(bl.checkNumber)) {
+          const returnedCheck = chBack.find(ch => ch.num === bl.checkNumber);
+  
+          allEntries.push({
+            type: 'checkBack',
+            date: returnedCheck.createdAt,
+            row: [
+              returnedCheck.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+              returnedCheck.amount,
+              returnedCheck.bank_name,
+              returnedCheck.num,
+              returnedCheck.date,
+              'شيك مرتد'
+            ],
+            color: 'FFFF0000' // اللون الأحمر لتمييز الشيكات المرتدة
+          });
+  
+          seenCheckNumbers.add(bl.checkNumber); // إضافة رقم الشيك إلى القائمة
+        } else if (!isReturnedCheck) {
+          allEntries.push({
+            type: 'bell',
+            date: bl.Entry_date,
+            row: [
+              bl.Entry_date.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+              bl.clint_name,
+              bl.payBell,
+              bl.bankName,
+              bl.checkNumber,
+              bl.checkDate,
+              bl.Notes || ''
+            ],
+            color: 'FFFFA500' // اللون البرتقالي للتحصيلات
+          });
+        }
       });
-    });
   
-    // إنشاء ورقة العمل
-    const wb = xlsx.utils.book_new();
-    const ws = xlsx.utils.aoa_to_sheet([]);
+      // إضافة بيانات الشيكات المرتدة التي لم تظهر بعد
+      chBack.forEach(ch => {
+        if (!seenCheckNumbers.has(ch.num)) {
+          allEntries.push({
+            type: 'checkBack',
+            date: ch.createdAt,
+            row: [
+              ch.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+              ch.amount,
+              ch.bank_name,
+              ch.num,
+              ch.date,
+              'شيك مرتد'
+            ],
+            color: 'FF3F51B5' // اللون الأزرق للشيكات المرتدة
+          });
+        }
+      });
   
-    // كتابة البيانات إلى ورقة العمل
-    data.forEach((item, index) => {
-      xlsx.utils.sheet_add_aoa(ws, [item.row], { origin: -1 });
+      // ترتيب جميع الإدخالات حسب التاريخ
+      allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
   
-      // إذا كان الشيك مرتدًا، نقوم بتلوين الصف
-      if (item.isReturned) {
-        const range = `A${index + 1}:E${index + 1}`;
-        ws[range].s = {
-          fill: {
-            fgColor: { rgb: 'FF0000' }, // تلوين بالخلفية الحمراء
-          },
+      // إضافة صف الرأس إلى الورقة
+      worksheet.addRow(['التاريخ', 'المبلغ', 'اسم البنك', 'رقم الشيك', 'تاريخ الشيك', 'الملاحظات']).font = { bold: true };
+  
+      // إضافة البيانات المرتبة إلى الورقة
+      allEntries.forEach(entry => {
+        const row = worksheet.addRow(entry.row);
+        row.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: entry.color }
         };
+        row.alignment = { horizontal: 'center' };
+      });
+  
+      
+  
+      const finalBalanceRow = worksheet.addRow(['', '', '', '', money]);
+      finalBalanceRow.font = { bold: true, color: { argb: 'FF000000' } };
+      finalBalanceRow.alignment = { horizontal: 'right' };
+  
+      // إعداد حجم الأعمدة
+      for (let i = 1; i <= 6; i++) {
+        worksheet.getColumn(i).width = 30;
+        worksheet.getColumn(i).alignment = { horizontal: 'center' };
       }
-    });
+    }
   
-    // إضافة الورقة إلى المصنف
-    xlsx.utils.book_append_sheet(wb, ws, 'Checks');
+    // إعداد رؤوس الاستجابة
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition',`attachment; filename=all_clients_details.xlsx`);
   
-    // كتابة الملف
-    const filePath = 'checks_report.xlsx';
-    xlsx.writeFile(wb, filePath);
-  
-    // إرسال ملف الإكسيل كاستجابة
-    res.download(filePath, 'checks_report.xlsx', (err) => {
-      if (err) {
-        console.error('خطأ أثناء تحميل الملف:', err);
-        res.status(500).json({ message: 'حدث خطأ أثناء تحميل الملف.' });
-      }
-    });
+    // كتابة الملف إلى الاستجابة
+    await workbook.xlsx.write(res);
+    res.end();
   });
-  
- 
