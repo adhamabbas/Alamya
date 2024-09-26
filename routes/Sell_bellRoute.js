@@ -12,6 +12,7 @@ const {
   createSell_bell,
   updateSell_bell,
   deleteSell_bell,
+  exportChecksToExcel,
   
   
 } = require('../services/Sell_bellService');
@@ -47,7 +48,9 @@ router
     deleteSell_bellValidator,
     deleteSell_bell
   );
-  
 
+  router
+  .route('/clint_Checks')
+  .get(exportChecksToExcel)
 
 module.exports = router;

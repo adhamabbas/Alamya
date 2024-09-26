@@ -1,6 +1,8 @@
 const asyncHandler = require('express-async-handler');
 const ApiError = require('../utils/apiError');
 const factory = require('./handlersFactory');
+const xlsx = require('xlsx');
+const ReturnedCheck = require('../models/ReturnCheckModel'); // Model for ReturnedCheck
 const Sell_bell = require('../models/Sell_bellModel');
 const Clint = require('../models/ClintModel');
 
@@ -80,3 +82,83 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
     
     res.status(204).json({ data: null });
   });
+
+
+  
+
+  
+  // دالة لإنشاء ملف إكسيل مع تمييز الشيكات المرتدة
+  exports.exportChecksToExcel = asyncHandler(async (req, res) => {
+    // البحث عن جميع الشيكات المرتدة من نموذج ReturnedCheck
+    const returnedChecks = await ReturnedCheck.find().select('num');
+  
+    // استخراج أرقام الشيكات المرتدة
+    const returnedCheckNumbers = returnedChecks.map(check => check.num);
+  
+    // البحث عن جميع الشيكات في نموذج Sell_bell
+    const checks = await Sell_bell.find({ paymentMethod: 'check' })
+      .populate({ path: 'user', select: 'name _id' })
+      .populate({ path: 'clint', select: 'clint_name _id' })
+      .select('clint bankName checkNumber checkDate payBell');
+  
+    // التحقق إذا كانت هناك أي شيكات
+    if (checks.length === 0) {
+      return res.status(404).json({ message: 'لا توجد أي شيكات للعملاء.' });
+    }
+  
+    // تجهيز بيانات الإكسيل
+    const data = [['Client Name', 'Bank Name', 'Check Number', 'Check Date', 'Check Amount']]; // عنوان الأعمدة
+  
+    checks.forEach(check => {
+      const isReturned = returnedCheckNumbers.includes(check.checkNumber); // التحقق إذا كان الشيك مرتدًا
+      const row = [
+        check.clint.clint_name,
+        check.bankName,
+        check.checkNumber,
+        check.checkDate,
+        check.payBell
+      ];
+  
+      // إضافة معلومات الشيك إلى البيانات
+      data.push({
+        row,
+        isReturned, // تحديد إذا كان الشيك مرتدًا لتلوينه لاحقًا
+      });
+    });
+  
+    // إنشاء ورقة العمل
+    const wb = xlsx.utils.book_new();
+    const ws = xlsx.utils.aoa_to_sheet([]);
+  
+    // كتابة البيانات إلى ورقة العمل
+    data.forEach((item, index) => {
+      xlsx.utils.sheet_add_aoa(ws, [item.row], { origin: -1 });
+  
+      // إذا كان الشيك مرتدًا، نقوم بتلوين الصف
+      if (item.isReturned) {
+        const range = `A${index + 1}:E${index + 1}`;
+        ws[range].s = {
+          fill: {
+            fgColor: { rgb: 'FF0000' }, // تلوين بالخلفية الحمراء
+          },
+        };
+      }
+    });
+  
+    // إضافة الورقة إلى المصنف
+    xlsx.utils.book_append_sheet(wb, ws, 'Checks');
+  
+    // كتابة الملف
+    const filePath = 'checks_report.xlsx';
+    xlsx.writeFile(wb, filePath);
+  
+    // إرسال ملف الإكسيل كاستجابة
+    res.download(filePath, 'checks_report.xlsx', (err) => {
+      if (err) {
+        console.error('خطأ أثناء تحميل الملف:', err);
+        res.status(500).json({ message: 'حدث خطأ أثناء تحميل الملف.' });
+      }
+    });
+  });
+  
+ 
