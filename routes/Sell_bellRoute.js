@@ -17,7 +17,10 @@ const {
 const authService = require('../services/authService');
 
 const router = express.Router();
-
+router
+  .route('/checks')
+  .get(exportChecksToExcel);
+  
 router
   .route('/')
   .get(authService.protect,
@@ -47,8 +50,6 @@ router
     deleteSell_bell
   );
 
-router
-  .route('/checks')
-  .get(exportChecksToExcel);
+
 
 module.exports = router;
