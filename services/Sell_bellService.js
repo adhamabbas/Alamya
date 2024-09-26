@@ -100,14 +100,14 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
   
     for (const client of allClients) {
       // الحصول على جميع الفواتير الخاصة بالعميل
-      const bell = await Sell_bell.find({ 
+      const bell = await Sell_bell.find({
         clint: client._id,
         paymentMethod: 'check' // فقط الفواتير المدفوعة بواسطة الشيكات
       }).populate({ path: 'clint', select: 'clint_name' });
   
       // الحصول على الشيكات المرتدة الخاصة بالعميل
       const chBack = await check_back.find({ clint: client._id })
-          .populate({ path: 'clint', select: 'clint_name money_on' });
+        .populate({ path: 'clint', select: 'clint_name money_on' });
   
       if (!bell.length && !chBack.length) {
         continue; // الانتقال للعميل التالي إذا لم يكن هناك بيانات
@@ -118,9 +118,6 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
   
       // تهيئة مصفوفة لتخزين جميع البيانات للترتيب حسب التاريخ
       const allEntries = [];
-  
-      // أخذ الرصيد المتبقي من العميل
-      let money = client.money_on;
   
       // تجميع بيانات الفواتير
       const seenCheckNumbers = new Set(); // لتتبع الشيكات المتشابهة
@@ -136,6 +133,7 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
             type: 'checkBack',
             date: returnedCheck.createdAt,
             row: [
+              client.clint_name, // إضافة اسم العميل هنا
               returnedCheck.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
               returnedCheck.amount,
               returnedCheck.bank_name,
@@ -150,9 +148,10 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
         } else if (!isReturnedCheck) {
           allEntries.push({
             type: 'bell',
-            date: bl.Entry_date,
+            date: bl.checkDate, // استخدام تاريخ الشيك لترتيب الشيكات
             row: [
-              bl.Entry_date.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+              client.clint_name, // إضافة اسم العميل هنا
+              bl.checkDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
               bl.payBell,
               bl.bankName,
               bl.checkNumber,
@@ -171,6 +170,7 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
             type: 'checkBack',
             date: ch.createdAt,
             row: [
+              client.clint_name, // إضافة اسم العميل هنا
               ch.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
               ch.amount,
               ch.bank_name,
@@ -183,11 +183,11 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
         }
       });
   
-      // ترتيب جميع الإدخالات حسب التاريخ
+      // ترتيب جميع الإدخالات حسب تاريخ الشيك من الأقرب إلى الأبعد
       allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
   
       // إضافة صف الرأس إلى الورقة
-      worksheet.addRow(['التاريخ', 'المبلغ', 'اسم البنك', 'رقم الشيك', 'تاريخ الشيك', 'الملاحظات']).font = { bold: true };
+      worksheet.addRow(['اسم العميل', 'التاريخ', 'المبلغ', 'اسم البنك', 'رقم الشيك', 'تاريخ الشيك', 'الملاحظات']).font = { bold: true };
   
       // إضافة البيانات المرتبة إلى الورقة
       allEntries.forEach(entry => {
@@ -201,16 +201,16 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
       });
   
       // إضافة الرصيد المتبقي في نهاية الجدول
-      const finalRow = worksheet.addRow(['', '', '', '', 'الرصيد المتبقي:']);
+      const finalRow = worksheet.addRow(['', '', '', '', '', 'الرصيد المتبقي:']);
       finalRow.font = { bold: true };
       finalRow.alignment = { horizontal: 'right' };
   
-      const finalBalanceRow = worksheet.addRow(['', '', '', '', money]);
+      const finalBalanceRow = worksheet.addRow(['', '', '', '', '', client.money_on]);
       finalBalanceRow.font = { bold: true, color: { argb: 'FF000000' } };
       finalBalanceRow.alignment = { horizontal: 'right' };
   
       // إعداد حجم الأعمدة
-      for (let i = 1; i <= 6; i++) {
+      for (let i = 1; i <= 7; i++) {
         worksheet.getColumn(i).width = 30;
         worksheet.getColumn(i).alignment = { horizontal: 'center' };
       }
