@@ -12,9 +12,7 @@ const {
   createSell_bell,
   updateSell_bell,
   deleteSell_bell,
-  exportChecksToExcel,
-  
-  
+  exportChecksToExcel, 
 } = require('../services/Sell_bellService');
 const authService = require('../services/authService');
 
@@ -50,7 +48,7 @@ router
   );
 
 router
-  .route('/clint/checks')
+  .route('/checks')
   .get(exportChecksToExcel);
 
 module.exports = router;
