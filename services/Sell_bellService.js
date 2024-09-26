@@ -146,12 +146,13 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
   
           seenCheckNumbers.add(bl.checkNumber); // إضافة رقم الشيك إلى القائمة
         } else if (!isReturnedCheck) {
+          const chdate = checkDate.toLocaleDateString('ar-EG', { dateStyle: 'short' });
           allEntries.push({
             type: 'bell',
-            date: bl.checkDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }), // استخدام تاريخ الشيك لترتيب الشيكات
+            date: bl.chdate, // استخدام تاريخ الشيك لترتيب الشيكات
             row: [
               client.clint_name, // إضافة اسم العميل هنا
-              bl.checkDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+              bl.chdate,
               bl.payBell,
               bl.bankName,
               bl.checkNumber,
