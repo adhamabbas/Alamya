@@ -76,121 +76,74 @@ exports.exportSupplayrDetailsToExcel = asyncHandler(async (req, res, next) => {
   }
 
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet(buys[0]?.supplayr.supplayr_name || 'عميل');
+
+  // إنشاء ورقة لكل نوع من المعاملات
+  const buysWorksheet = workbook.addWorksheet('مشتريات');
+  const bellWorksheet = workbook.addWorksheet('فواتير');
+  const taxWorksheet = workbook.addWorksheet('ضرائب');
 
   // تهيئة مصفوفة لتخزين جميع البيانات للترتيب حسب التاريخ
-  const allEntries = [];
-  
-  const money = buys[0]?.supplayr.price_on ;
-  // خريطة لتجميع المشتريات حسب التاريخ والنوع
-  const buysMap = {};
+  const buysEntries = [];
+  const bellEntries = [];
+  const taxEntries = [];
+
+  const money = buys[0]?.supplayr.price_on;
 
   // تجميع بيانات المشتريات
   buys.forEach(by => {
-    const entryDate = by.Entry_date.toLocaleDateString('ar-EG', { dateStyle: 'short' });
-    const productType = by.product.type;
-    const PricKilo = by.price_Kilo;
-     const notes = by.Notes;
-    // إنشاء مفتاح فريد لكل تاريخ ونوع منتج
-    const key = `${entryDate}-${productType}`;
-
-    if (!buysMap[key]) {
-      buysMap[key] = {
-        date: by.Entry_date,
-        type: productType,
-        totalWeight: 0,
-        totalPrice: 0,
-        PriceKilo:PricKilo,
-        Note:notes,
-      };
-    }
-
-    // جمع الوزن والسعر لنفس التاريخ والنوع
-    buysMap[key].totalWeight += by.E_wieght;
-    buysMap[key].totalPrice += by.price_all;
-  });
-
-  // إضافة المشتريات المجمعة إلى المصفوفة
-  Object.values(buysMap).forEach(buy => {
-    allEntries.push({
-      type: 'buy',
-      date: buy.date,
-      row: [
-        buy.date.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
-        buy.type,
-        buy.totalWeight,
-        buy.PriceKilo,
-        buy.totalPrice,
-        buy.Note,
-        'مشتريات',
-      ],
-      color: 'FF4CAF50' // اللون الأخضر للمشتريات
-    });
+    buysEntries.push([
+      by.Entry_date.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+      by.product.type,
+      by.E_wieght,
+      by.price_Kilo,
+      by.price_all,
+      by.Notes
+    ]);
   });
 
   // تجميع بيانات الفواتير
   bell.forEach(bl => {
-    allEntries.push({
-      type: 'bell',
-      date: bl.Entry_date,
-      row: [
-        bl.Entry_date.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
-        bl.payment_method,
-        bl.pay_bell,
-        bl.bank_name,
-        bl.check_number,
-        bl.Notes,
-        'فواتير',
-      ],
-      color: 'FFFF9800' // اللون البرتقالي للفواتير
-    });
+    bellEntries.push([
+      bl.Entry_date.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+      bl.payment_method,
+      bl.pay_bell,
+      bl.bank_name,
+      bl.check_number,
+      bl.Notes
+    ]);
   });
 
   // تجميع بيانات الضرائب
   tax.forEach(t => {
-    allEntries.push({
-      type: 'tax',
-      date: t.entryDate,
-      row: [
-        t.entryDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
-        t.amount,
-        t.taxRate,
-        t.discountRate,
-        t.Bell_num,
-        t.Company_name,
-        t.Notes,
-        'ضرائب',
-      ],
-      color: 'FFF44336' // اللون الأحمر للضرائب
-    });
+    taxEntries.push([
+      t.entryDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+      t.amount,
+      t.taxRate,
+      t.discountRate,
+      t.Bell_num,
+      t.Company_name,
+      t.Notes
+    ]);
   });
 
-  // ترتيب جميع الإدخالات حسب التاريخ
-  allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+  // إضافة صف الرأس إلى كل ورقة
+  buysWorksheet.addRow(['التاريخ', 'الصنف', 'الكمية', 'سعر الكيلو', 'القيمة', 'الملاحظات']);
+  bellWorksheet.addRow(['التاريخ', 'طريقة الدفع', 'المبلغ', 'اسم البنك', 'رقم الشيك', 'الملاحظات']);
+  taxWorksheet.addRow(['التاريخ', 'المبلغ', 'نسبة الضريبة', 'نسبة الخصم', 'رقم الفاتورة', 'اسم الشركة', 'الملاحظات']);
 
-  // إضافة صف الرأس إلى الورقة
-  worksheet.addRow(['التاريخ', 'الصنف', 'الكمية', 'السعر', 'القيمة','اسم شركة','الملاحظات']);
+  // إضافة البيانات إلى كل ورقة
+  buysEntries.forEach(entry => buysWorksheet.addRow(entry));
+  bellEntries.forEach(entry => bellWorksheet.addRow(entry));
+  taxEntries.forEach(entry => taxWorksheet.addRow(entry));
 
-  // إضافة البيانات المرتبة إلى الورقة
-  allEntries.forEach(entry => {
-    const row = worksheet.addRow(entry.row);
-    row.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: entry.color } };
+  // إعداد عرض الأعمدة والمحاذاة
+  [buysWorksheet, bellWorksheet, taxWorksheet].forEach(worksheet => {
+    for (let i = 1; i <= 7; i++) {
+      worksheet.getColumn(i).width = 20;
+      worksheet.getColumn(i).alignment = { horizontal: 'center' };
+    }
   });
- 
- 
-  const finalRow = worksheet.addRow(['', '', '', '', 'الرصيد المتبقي:']);
-  finalRow.font = { bold: true };
-  finalRow.alignment = { horizontal: 'right' };
 
-  const finalBalanceRow = worksheet.addRow(['', '', '', '', money]);
-  finalBalanceRow.font = { bold: true, color: { argb: 'FF000000' } };
-  finalBalanceRow.alignment = { horizontal: 'right' };
-
-  for (let i = 1; i <= 8; i++) {
-    worksheet.getColumn(i).width = 30;
-    worksheet.getColumn(i).alignment = { horizontal: 'center' };
-  }
   // إعداد رؤوس الاستجابة
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename=supplier_${supplayrId}_details.xlsx`);
@@ -199,8 +152,6 @@ exports.exportSupplayrDetailsToExcel = asyncHandler(async (req, res, next) => {
   await workbook.xlsx.write(res);
   res.end();
 });
-
-
 //export Supplayr Cheack 
 exports.exportSupplayrCheakToExcel = asyncHandler(async (req, res, next) => {
   const { supplayrId } = req.params;

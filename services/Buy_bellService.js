@@ -91,3 +91,64 @@ exports.deleteBuy_bell = asyncHandler(async (req, res, next) => {
   });
 
 
+  exports.exportSupplierChecksToExcel = asyncHandler(async (req, res, next) => {
+    const { supplayrId } = req.params;
+  
+    if (!mongoose.Types.ObjectId.isValid(supplayrId)) {
+      return next(new ApiError('Invalid supplier ID', 400));
+    }
+  
+    // الحصول على جميع الفواتير الخاصة بالمورد والمدفوعة بواسطة الشيكات
+    const buyBell = await Buy_bell.find({
+      supplayr: supplayrId,
+      payment_method: 'check', // فقط الفواتير المدفوعة بواسطة الشيكات
+    }).populate({ path: 'supplayr', select: 'supplayr_name' });
+  
+    if (!buyBell.length) {
+      return next(new ApiError(`No checks found for supplier with ID: ${supplayrId}, 404`));
+    }
+  
+    // إعداد Workbook جديد وورقة عمل
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Supplier Checks');
+  
+    // إضافة صف الرأس إلى الورقة
+    worksheet.addRow(['اسم المورد', 'تاريخ الإدخال', 'تاريخ الشيك', 'المبلغ', 'اسم البنك', 'رقم الشيك', 'الملاحظات']).font = { bold: true };
+  
+    // تهيئة مصفوفة لتخزين جميع البيانات
+    const checkEntries = [];
+  
+    buyBell.forEach(bell => {
+      // التأكد من أن الحقل Entry_date و check_date معرفين
+      const entryDate = bell.Entry_date ? new Date(bell.Entry_date) : new Date(); // استخدم تاريخ الإدخال أو التاريخ الحالي
+      const checkDate = bell.check_date ? new Date(bell.check_date) : ''; // إذا لم يكن هناك تاريخ شيك، نتركه فارغًا
+  
+      // إضافة بيانات الشيك إلى المصفوفة
+      checkEntries.push([
+        bell.supplayr.supplayr_name, // اسم المورد
+        entryDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }), // تاريخ الإدخال
+        checkDate ? checkDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }) : '', // تاريخ الشيك
+        bell.pay_bell, // المبلغ
+        bell.bank_name, // اسم البنك
+        bell.check_number, // رقم الشيك
+        bell.Notes || '' // الملاحظات
+      ]);
+    });
+  
+    // إضافة البيانات إلى الورقة
+    checkEntries.forEach(entry => worksheet.addRow(entry));
+  
+    // إعداد حجم الأعمدة
+    for (let i = 1; i <= 7; i++) {
+      worksheet.getColumn(i).width = 30;
+      worksheet.getColumn(i).alignment = { horizontal: 'center' };
+    }
+  
+    // إعداد رؤوس الاستجابة
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=supplier_${supplayrId}_checks.xlsx`);
+  
+    // كتابة الملف إلى الاستجابة
+    await workbook.xlsx.write(res);
+    res.end();
+  });
