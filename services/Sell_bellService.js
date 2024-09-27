@@ -84,9 +84,6 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
   });
 
 
-  
-
-  
   exports.exportChecksToExcel = asyncHandler(async (req, res, next) => {
     // الحصول على جميع العملاء
     const allClients = await Clint.find();
@@ -95,8 +92,14 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
       return next(new ApiError('No clients found', 404));
     }
   
-    // إعداد Workbook جديد
+    // إعداد Workbook جديد وورقة عمل واحدة
     const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('شيكات العملاء');
+  
+    // إضافة صف الرأس إلى الورقة
+    worksheet.addRow(['اسم العميل', 'تاريخ الإدخال', 'تاريخ الشيك', 'المبلغ', 'اسم البنك', 'رقم الشيك', 'الملاحظات']).font = { bold: true };
+  
+    const allEntries = []; // تهيئة مصفوفة لتخزين جميع البيانات للترتيب حسب التاريخ
   
     for (const client of allClients) {
       // الحصول على جميع الفواتير الخاصة بالعميل
@@ -113,18 +116,11 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
         continue; // الانتقال للعميل التالي إذا لم يكن هناك بيانات
       }
   
-      // إنشاء ورقة عمل جديدة لكل عميل
-      const worksheet = workbook.addWorksheet(client.clint_name || 'عميل');
-  
-      // تهيئة مصفوفة لتخزين جميع البيانات للترتيب حسب التاريخ
-      const allEntries = [];
-  
       // تجميع بيانات الفواتير
       const seenCheckNumbers = new Set(); // لتتبع الشيكات المتشابهة
   
       bell.forEach(bl => {
-        const isReturnedCheck = chBack.some(ch => ch.num === bl.checkNumber);
-      // التحقق إذا كان الشيك مرتدًا
+        const isReturnedCheck = chBack.some(ch => ch.num === bl.checkNumber); // التحقق إذا كان الشيك مرتدًا
   
         // إذا كان الشيك مرتدًا، نضيفه مرة واحدة فقط بتاريخ ارتداد الشيك
         if (isReturnedCheck && !seenCheckNumbers.has(bl.checkNumber)) {
@@ -132,91 +128,86 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
   
           allEntries.push({
             type: 'checkBack',
-            date: returnedCheck.createdAt,
+            date: returnedCheck.createdAt, // استخدام تاريخ ارتداد الشيك
             row: [
               client.clint_name, // إضافة اسم العميل هنا
-              returnedCheck.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+              returnedCheck.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }), // تاريخ الإدخال هو تاريخ ارتداد الشيك هنا
+              '', // لا يوجد تاريخ شيك هنا
               returnedCheck.amount,
               returnedCheck.bank_name,
               returnedCheck.num,
-              returnedCheck.date,
               'شيك مرتد'
             ],
             color: 'FFFF0000' // اللون الأحمر لتمييز الشيكات المرتدة
           });
   
           seenCheckNumbers.add(bl.checkNumber); // إضافة رقم الشيك إلى القائمة
-        } else if (!isReturnedCheck) {
-          
+        } else if (!isReturnedCheck && !seenCheckNumbers.has(bl.checkNumber)) {
+          // التأكد من أن الحقل entryDate و checkDate معرفين
+          const entryDate = bl.Entry_date ? new Date(bl.Entry_date) : new Date(); // استخدم تاريخ الإدخال أو التاريخ الحالي
+          const checkDate = bl.checkDate ? new Date(bl.checkDate) : ''; // إذا لم يكن هناك تاريخ شيك، نتركه فارغًا
+  
           allEntries.push({
             type: 'bell',
-            date: bl.checkDate, // استخدام تاريخ الشيك لترتيب الشيكات
+            date: entryDate, // استخدام تاريخ الإدخال لترتيب الشيكات
             row: [
               client.clint_name, // إضافة اسم العميل هنا
-              bl.checkDate,
+              entryDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }), // عرض تاريخ الإدخال
+              checkDate ? checkDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }) : '', // عرض تاريخ الشيك إذا كان موجودًا
               bl.payBell,
               bl.bankName,
               bl.checkNumber,
-              bl.checkDate,
               bl.Notes || ''
             ],
-            color: 'FFFFA500' // اللون البرتقالي للتحصيلات
+            color: '013220' // اللون البرتقالي للتحصيلات
           });
+  
+          seenCheckNumbers.add(bl.checkNumber); // إضافة رقم الشيك لمنع التكرار مع الشيكات المرتدة
         }
       });
   
       // إضافة بيانات الشيكات المرتدة التي لم تظهر بعد
       chBack.forEach(ch => {
-
         if (!seenCheckNumbers.has(ch.num)) {
           allEntries.push({
             type: 'checkBack',
-            date: ch.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+            date: ch.createdAt, // استخدام تاريخ ارتداد الشيك
             row: [
               client.clint_name, // إضافة اسم العميل هنا
-              ch.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }),
+              ch.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }), // عرض تاريخ الإدخال (ارتداد الشيك)
+              '', // لا يوجد تاريخ شيك هنا
               ch.amount,
               ch.bank_name,
               ch.num,
-              ch.date,
               'شيك مرتد'
             ],
-            color: 'FF3F51B5' // اللون الأزرق للشيكات المرتدة
+            color: 'FF0000' // اللون الأزرق للشيكات المرتدة
           });
+  
+          seenCheckNumbers.add(ch.num); // إضافة رقم الشيك لمنع التكرار
         }
       });
+    }
   
-      // ترتيب جميع الإدخالات حسب تاريخ الشيك من الأقرب إلى الأبعد
-      allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    // ترتيب جميع الإدخالات حسب تاريخ الإدخال من الأقدم إلى الأحدث
+    allEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
   
-      // إضافة صف الرأس إلى الورقة
-      worksheet.addRow(['اسم العميل', 'التاريخ', 'المبلغ', 'اسم البنك', 'رقم الشيك', 'تاريخ الشيك', 'الملاحظات']).font = { bold: true };
+    // إضافة البيانات المرتبة إلى الورقة
+    allEntries.forEach(entry => {
+      const row = worksheet.addRow(entry.row);
+      row.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: entry.color }
+      };
+      row.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      row.alignment = { horizontal: 'center' };
+    });
   
-      // إضافة البيانات المرتبة إلى الورقة
-      allEntries.forEach(entry => {
-        const row = worksheet.addRow(entry.row);
-        row.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: entry.color }
-        };
-        row.alignment = { horizontal: 'center' };
-      });
-  
-      // إضافة الرصيد المتبقي في نهاية الجدول
-      const finalRow = worksheet.addRow(['', '', '', '', '', 'الرصيد المتبقي:']);
-      finalRow.font = { bold: true };
-      finalRow.alignment = { horizontal: 'right' };
-  
-      const finalBalanceRow = worksheet.addRow(['', '', '', '', '', client.money_on]);
-      finalBalanceRow.font = { bold: true, color: { argb: 'FF000000' } };
-      finalBalanceRow.alignment = { horizontal: 'right' };
-  
-      // إعداد حجم الأعمدة
-      for (let i = 1; i <= 7; i++) {
-        worksheet.getColumn(i).width = 30;
-        worksheet.getColumn(i).alignment = { horizontal: 'center' };
-      }
+    // إعداد حجم الأعمدة
+    for (let i = 1; i <= 7; i++) {
+      worksheet.getColumn(i).width = 30;
+      worksheet.getColumn(i).alignment = { horizontal: 'center' };
     }
   
     // إعداد رؤوس الاستجابة
