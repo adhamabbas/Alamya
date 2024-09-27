@@ -44,10 +44,10 @@ router
     authService.protect,
     authService.allowedTo('admin'),getClientDetails); 
     router
-  .route('/:clientId/details/export')
+  .route('/details/export')
   .get(exportClientDetailsToExcel);
-  router
+ /* router
   .route('/:clientId/export')
-  .get(exportClintCheakToExcel);
+  .get(exportClintCheakToExcel);*/
 
 module.exports = router;
