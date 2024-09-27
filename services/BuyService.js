@@ -29,51 +29,66 @@ exports.createBuy = factory.createOne(Buy);
 // @desc    Update specific Buy
 // @route   PUT /api/v1/Buys/:id
 // @access  Private
-exports.updateBuy =  asyncHandler(async (req, res, next) => {
-     
-    const oldDocument = await Buy.findById(req.params.id);
+exports.updateBuy = asyncHandler(async (req, res, next) => {
+  const oldDocument = await Buy.findById(req.params.id);
   
-    if (!oldDocument) {
-      return next(new ApiError(`No document found for this ID: ${req.params.id}`, 404));
-    }
-  
-    const payBellChanged = req.body.pay !== undefined && req.body.pay !== oldDocument.pay;
-    let oldPayBell = 0;
-  
-    if (payBellChanged) {
-      oldPayBell = oldDocument.pay;
-    }
-  
-    const payBellChanged1 = req.body.price_all !== undefined && req.body.price_all !== oldDocument.price_all;
-    let oldPayBell1 = 0;
-  
-    if (payBellChanged1) {
-      oldPayBell1 = oldDocument.price_all;
-    }
-  
-    const document = await Buy.findOneAndUpdate({ _id: req.params.id }, req.body, {
-      new: true,
-      runValidators: true,
-    });
+  if (!oldDocument) {
+    return next(new ApiError(`No document found for this ID: ${req.params.id}, 404`));
+  }
 
-    if (!document) {
-      return next(new ApiError(`No document for this id ${req.params.id}`, 404));
-    }
-     
-    if (payBellChanged) {
-      neWbell = req.body.pay;
-       await document.constructor.takeMoney_d(document.supplayr,0, neWbell- oldPayBell);
-       await document.constructor.allcalc_d(document.supplayr,0, neWbell- oldPayBell);
-      }
-     
-      if (payBellChanged1) {
-        newbell = req.body.price_all;
-        await document.constructor.takeMoney_d(document.supplayr,newbell - oldPayBell1,0);
-         await document.constructor.allcalc_d(document.supplayr,newbell - oldPayBell1,0);
-      }
-        
-    res.status(200).json({ data: document });
+  const payBellChanged = req.body.pay !== undefined && req.body.pay !== oldDocument.pay;
+  let oldPayBell = 0;
+  
+  if (payBellChanged) {
+    oldPayBell = oldDocument.pay;
+  }
+
+  const payBellChanged1 = req.body.price_all !== undefined && req.body.price_all !== oldDocument.price_all;
+  let oldPayBell1 = 0;
+  
+  if (payBellChanged1) {
+    oldPayBell1 = oldDocument.price_all;
+  }
+
+  // تحقق من التعديل على الوزن أو المقاس
+  const weightChanged = req.body.E_wieght !== undefined && req.body.E_wieght !== oldDocument.E_wieght;
+  const sizeChanged = req.body.size !== undefined && req.body.size !== oldDocument.size;
+
+  const document = await Buy.findOneAndUpdate({ _id: req.params.id }, req.body, {
+    new: true,
+    runValidators: true,
   });
+
+  if (!document) {
+    return next(new ApiError(`No document for this id ${req.params.id}, 404`));
+  }
+
+  if (payBellChanged) {
+    const newPayBell = req.body.pay;
+    await document.constructor.takeMoney_d(document.supplayr, 0, newPayBell - oldPayBell);
+    await document.constructor.allcalc_d(document.supplayr, 0, newPayBell - oldPayBell);
+  }
+
+  if (payBellChanged1) {
+    const newPayBell1 = req.body.price_all;
+    await document.constructor.takeMoney_d(document.supplayr, newPayBell1 - oldPayBell1, 0);
+    await document.constructor.allcalc_d(document.supplayr, newPayBell1 - oldPayBell1, 0);
+  }
+
+  // تحديث الوزن أو المقاس في المخزن عند حدوث تغيير
+  if (weightChanged || sizeChanged) {
+    await document.constructor.updateWarehouse(
+      document.user,
+      document.supplayr,
+      document.product,
+      document.product_code,
+      req.body.E_wieght || oldDocument.E_wieght,
+      req.body.size || oldDocument.size
+    );
+  }
+
+  res.status(200).json({ data: document });
+});
 
 
 // @desc    Delete specific Buy
