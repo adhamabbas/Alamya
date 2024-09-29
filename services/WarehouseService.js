@@ -2,6 +2,7 @@
 const asyncHandler = require('express-async-handler');
 const ApiFeatures = require('../utils/apiFeatures');
 const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const factory = require('./handlersFactory');
 const Warehouse = require('../models/WarehouseModel');
 
@@ -80,5 +81,128 @@ exports.printExcel =  asyncHandler(async (req, res) => {
     res.send(excelBuffer);
   });
 
+ 
 
-
+  
+  
+  
+  // دالة لتصنيف المنتجات حسب الاسم
+  const categorizeProduct = (productName) => {
+    if (productName.includes('فلوت فاخر')) {
+      return 'فلوت فاخر';
+    } else if (productName.includes('تيست معالج')) {
+      return 'تيست معالج';
+    } else if (productName.includes('فلوت عادي')) {
+      return 'فلوت عادي';
+    } else if (productName.includes('توب كرافت')) {
+      return 'توب كرافت';
+    } else {
+      return null; // في حال لم يطابق أي من الأنواع الرئيسية
+    }
+  };
+  
+  exports.printProductComparisonExcel = asyncHandler(async (req, res) => {
+    let filter = {};
+  
+    if (req.filterObj) {
+      filter = req.filterObj;
+    }
+  
+    const sizes = Array.from({ length: Math.floor((190 - 50) / 5) + 1 }, (v, i) => 50 + i * 5);
+  
+    const documents = await Warehouse.find(filter)
+      .populate({ path: 'user', select: 'name -_id' })
+      .populate({ path: 'product', select: 'type avg_price weight weight_money _id' })
+      .populate({ path: 'supplayr', select: 'supplayr_name _id' });
+  
+    const categoryCounts = {
+      'فلوت فاخر': Array(sizes.length).fill(0),
+      'تيست معالج': Array(sizes.length).fill(0),
+      'فلوت عادي': Array(sizes.length).fill(0),
+      'توب كرافت': Array(sizes.length).fill(0)
+    };
+  
+    documents.forEach(doc => {
+      const mainCategory = categorizeProduct(doc.product.type);
+      if (mainCategory) {
+        const sizeIndex = sizes.indexOf(doc.size);
+        if (sizeIndex !== -1) {
+          categoryCounts[mainCategory][sizeIndex] += 1;
+        }
+      }
+    });
+  
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Product Comparison');
+  
+    // إضافة عناوين الأعمدة
+    worksheet.columns = [
+      { header: 'المقاس', key: 'size', width: 10 },
+      { header: 'فلوت فاخر', key: 'flot_fakhr', width: 15 },
+      { header: 'تيست معالج', key: 'test_moaleg', width: 15 },
+      { header: 'فلوت عادي', key: 'flot_adi', width: 15 },
+      { header: 'توب كرافت', key: 'top_karft', width: 15 }
+    ];
+  
+    // تنسيق العناوين (Bold & Color)
+    worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid',fgColor: { argb: 'FF0000' }};
+    worksheet.getRow(1).border= {
+      top: { style: 'thin', color: { argb: '000000' } },
+      left: { style: 'thin', color: { argb: '000000' } },
+      bottom: { style: 'thin', color: { argb: '000000' } },
+      right: { style: 'thin', color: { argb: '000000' } }
+    },
+    worksheet.getRow(1).alignment = { horizontal: 'center' };
+    // إضافة البيانات (المقاسات وأنواع المنتجات)
+    sizes.forEach((size, index) => {
+      const row = worksheet.addRow({
+        size: size,
+        flot_fakhr: categoryCounts['فلوت فاخر'][index],
+        test_moaleg: categoryCounts['تيست معالج'][index],
+        flot_adi: categoryCounts['فلوت عادي'][index],
+        top_karft: categoryCounts['توب كرافت'][index]
+      });
+      row.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '06402B' } };
+      row.border= {
+        top: { style: 'thin', color: { argb: '000000' } },
+        left: { style: 'thin', color: { argb: '000000' } },
+        bottom: { style: 'thin', color: { argb: '000000' } },
+        right: { style: 'thin', color: { argb: '000000' } }
+      },
+      row.alignment = { horizontal: 'center' };
+    });
+  
+    // إضافة صف المجموع
+    worksheet.addRow({
+      size: 'المجموع',
+      flot_fakhr: categoryCounts['فلوت فاخر'].reduce((a, b) => a + b, 0),
+      test_moaleg: categoryCounts['تيست معالج'].reduce((a, b) => a + b, 0),
+      flot_adi: categoryCounts['فلوت عادي'].reduce((a, b) => a + b, 0),
+      top_karft: categoryCounts['توب كرافت'].reduce((a, b) => a + b, 0)
+    });
+  
+    // تنسيق صف المجموع
+    const lastRow = worksheet.lastRow;
+    lastRow.font = { bold: true, color: { argb: 'FFFFFF' } };
+    lastRow.fill={type: 'pattern',pattern: 'solid', fgColor: { argb: '000000' }};
+    lastRow.border= {
+      top: { style: 'thin', color: { argb: '000000' } },
+      left: { style: 'thin', color: { argb: '000000' } },
+      bottom: { style: 'thin', color: { argb: '000000' } },
+      right: { style: 'thin', color: { argb: '000000' } }
+    },
+    lastRow.alignment = { horizontal: 'center' };
+  
+    // تجميد الصف الأول
+    worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+  
+    // إعداد الاستجابة وإرسال ملف Excel
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=product_comparison.xlsx');
+  
+    await workbook.xlsx.write(res);
+    res.end();
+  });
+  

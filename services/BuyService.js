@@ -60,7 +60,7 @@ exports.updateBuy = asyncHandler(async (req, res, next) => {
   });
 
   if (!document) {
-    return next(new ApiError(`No document for this id ${req.params.id}, 404`));
+    return next(new ApiError(`No document for this id ${req.params.id}, 404` ));
   }
 
   if (payBellChanged) {

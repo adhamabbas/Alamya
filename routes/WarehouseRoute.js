@@ -7,6 +7,7 @@ const {
   updateWarehouse,
   deleteWarehouse,
   printExcel,
+  printProductComparisonExcel,
   
 } = require('../services/WarehouseService');
 const authService = require('../services/authService');
@@ -40,6 +41,12 @@ router
   .route('/export/excel')
   .get(
     printExcel
+  );
+
+  router
+  .route('/export/size')
+  .get(
+    printProductComparisonExcel
   );
 
 

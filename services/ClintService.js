@@ -217,6 +217,7 @@ exports.exportClientDetailsToExcel = asyncHandler(async (req, res, next) => {
     for (let i = 1; i <= 8; i++) {
       worksheet.getColumn(i).width = 30;
       worksheet.getColumn(i).alignment = { horizontal: 'center' };
+      
     }
   }
 
