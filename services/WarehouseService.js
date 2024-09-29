@@ -164,7 +164,7 @@ exports.printExcel =  asyncHandler(async (req, res) => {
         top_karft: categoryCounts['توب كرافت'][index]
       });
       row.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '06402B' } };
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '39a845' } };
       row.border= {
         top: { style: 'thin', color: { argb: '000000' } },
         left: { style: 'thin', color: { argb: '000000' } },
