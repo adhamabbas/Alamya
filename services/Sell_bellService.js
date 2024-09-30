@@ -120,38 +120,40 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
       const seenCheckNumbers = new Set(); // لتتبع الشيكات المتشابهة
   
       bell.forEach(bl => {
-        const isReturnedCheck = chBack.some(ch => ch.num === bl.checkNumber); // التحقق إذا كان الشيك مرتدًا
-  
-        // إذا كان الشيك مرتدًا، نضيفه مرة واحدة فقط بتاريخ ارتداد الشيك
+        const isReturnedCheck = chBack.some(ch => ch.num === bl.checkNumber);
+      
+        // إذا كان الشيك مرتدًا ولم تتم إضافته سابقًا
         if (isReturnedCheck && !seenCheckNumbers.has(bl.checkNumber)) {
           const returnedCheck = chBack.find(ch => ch.num === bl.checkNumber);
-  
+      
           allEntries.push({
             type: 'checkBack',
             date: returnedCheck.createdAt, // استخدام تاريخ ارتداد الشيك
             row: [
-              client.clint_name, // إضافة اسم العميل هنا
-              returnedCheck.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }), // تاريخ الإدخال هو تاريخ ارتداد الشيك هنا
-              '', // لا يوجد تاريخ شيك هنا
+              client.clint_name, // إضافة اسم العميل
+              returnedCheck.createdAt.toLocaleDateString('ar-EG', { dateStyle: 'short' }), // تاريخ ارتداد الشيك
+              '', // لا يوجد تاريخ شيك
               returnedCheck.amount,
               returnedCheck.bank_name,
               returnedCheck.num,
               'شيك مرتد'
             ],
-            color: 'FFFF0000' // اللون الأحمر لتمييز الشيكات المرتدة
+            color: 'FFFF0000' // اللون الأحمر للشيكات المرتدة
           });
-  
-          seenCheckNumbers.add(bl.checkNumber); // إضافة رقم الشيك إلى القائمة
-        } else if (!isReturnedCheck && !seenCheckNumbers.has(bl.checkNumber)) {
-          // التأكد من أن الحقل entryDate و checkDate معرفين
-          const entryDate = bl.Entry_date ? new Date(bl.Entry_date) : new Date(); // استخدم تاريخ الإدخال أو التاريخ الحالي
-          const checkDate = bl.checkDate ? new Date(bl.checkDate) : ''; // إذا لم يكن هناك تاريخ شيك، نتركه فارغًا
-  
+      
+          // إضافة رقم الشيك إلى قائمة الشيكات التي تمت معالجتها
+          seenCheckNumbers.add(bl.checkNumber);
+        } 
+        // إذا لم يكن الشيك مرتدًا ولم تتم إضافته سابقًا
+        else if (!isReturnedCheck && !seenCheckNumbers.has(bl.checkNumber)) {
+          const entryDate = bl.Entry_date ? new Date(bl.Entry_date) : new Date(); // تاريخ الإدخال أو التاريخ الحالي
+          const checkDate = bl.checkDate ? new Date(bl.checkDate) : ''; // إذا لم يكن هناك تاريخ شيك، اتركه فارغًا
+      
           allEntries.push({
             type: 'bell',
-            date: entryDate, // استخدام تاريخ الإدخال لترتيب الشيكات
+            date: entryDate, // استخدام تاريخ الإدخال
             row: [
-              client.clint_name, // إضافة اسم العميل هنا
+              client.clint_name, // إضافة اسم العميل
               entryDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }), // عرض تاريخ الإدخال
               checkDate ? checkDate.toLocaleDateString('ar-EG', { dateStyle: 'short' }) : '', // عرض تاريخ الشيك إذا كان موجودًا
               bl.payBell,
@@ -161,8 +163,9 @@ exports.deleteSell_bell = asyncHandler(async (req, res, next) => {
             ],
             color: '013220' // اللون البرتقالي للتحصيلات
           });
-  
-          seenCheckNumbers.add(bl.checkNumber); // إضافة رقم الشيك لمنع التكرار مع الشيكات المرتدة
+      
+          // إضافة رقم الشيك إلى قائمة الشيكات التي تمت معالجتها
+          seenCheckNumbers.add(bl.checkNumber);
         }
       });
   
