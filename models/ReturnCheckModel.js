@@ -19,7 +19,7 @@ const ReturnedCheckSchema = new mongoose.Schema(
       required: true,
     },
      num:{
-       type:Number,
+       type:String,
      },
      bank_name: {
       type: String,
