@@ -232,3 +232,57 @@ exports.exportClientDetailsToExcel = asyncHandler(async (req, res, next) => {
 
 
 
+
+
+
+exports.exportClientBalancesToExcel = asyncHandler(async (req, res, next) => {
+  // جلب جميع العملاء
+  const clients = await Clint.find();
+
+  if (!clients.length) {
+    return next(new ApiError('No clients found', 404));
+  }
+
+  // إنشاء ملف Excel جديد
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('تفاصيل العملاء');
+
+  // إضافة صف الرأس
+  worksheet.addRow(['اسم العميل', 'الرصيد المتبقي', 'تاريخ آخر معاملة']).font = { bold: true };
+
+  // إعداد البيانات لكل عميل
+  for (const client of clients) {
+    // جلب المعاملات الخاصة بالعميل (فواتير، مبيعات، شيكات مرتدة، إلخ.)
+    const lastSell = await Sell.findOne({ clint: client._id }).sort({ entry_date: -1 });
+    const lastBell = await Sell_bell.findOne({ clint: client._id }).sort({ Entry_date: -1 });
+    const lastCheckBack = await check_back.findOne({ clint: client._id }).sort({ createdAt: -1 });
+
+    // تحديد تاريخ آخر معاملة
+    const lastTransaction = [lastSell, lastBell, lastCheckBack].filter(Boolean).sort((a, b) => new Date(b.createdAt || b.Entry_date || b.entry_date) - new Date(a.createdAt || a.Entry_date || a.entry_date))[0];
+
+    const lastTransactionDate = lastTransaction
+      ? new Date(lastTransaction.createdAt || lastTransaction.Entry_date || lastTransaction.entry_date).toLocaleDateString('ar-EG', { dateStyle: 'short' })
+      : 'لا توجد معاملات';
+
+    // الرصيد المتبقي للعميل
+    const remainingBalance = client.money_on || 0;
+
+    // إضافة بيانات العميل إلى الورقة
+    worksheet.addRow([client.clint_name, remainingBalance, lastTransactionDate]);
+  }
+
+  // إعداد حجم الأعمدة
+  worksheet.columns.forEach(column => {
+    column.width = 30;
+    column.alignment = { horizontal: 'center' };
+    column.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F0DE89' } };
+  });
+
+  // إعداد رؤوس الاستجابة
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename=clients_balances.xlsx`);
+
+  // كتابة الملف إلى الاستجابة
+  await workbook.xlsx.write(res);
+  res.end();
+});

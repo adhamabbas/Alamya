@@ -9,7 +9,7 @@ const {
   deleteClint,
   getClientDetails,
   exportClientDetailsToExcel,
-  exportClintCheakToExcel,
+  exportClientBalancesToExcel,
 } = require('../services/ClintService');
 
 const authService = require('../services/authService');
@@ -46,8 +46,9 @@ router
     router
   .route('/details/export')
   .get(exportClientDetailsToExcel);
- /* router
-  .route('/:clientId/export')
-  .get(exportClintCheakToExcel);*/
+ 
+  router
+  .route('/all/export')
+  .get(exportClientBalancesToExcel);
 
 module.exports = router;
