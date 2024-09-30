@@ -35,7 +35,7 @@ exports.updateWarehouse = factory.updateOne(Warehouse);
 exports.deleteWarehouse = factory.deleteOne(Warehouse);
 
 
-exports.printExcel =  asyncHandler(async (req, res) => {
+/*exports.printExcel =  asyncHandler(async (req, res) => {
     let filter = {};
     if (req.filterObj) {
       filter = req.filterObj;
@@ -79,7 +79,7 @@ exports.printExcel =  asyncHandler(async (req, res) => {
     // Send Excel file
     const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
     res.send(excelBuffer);
-  });
+  });*/
 
  
 
@@ -163,8 +163,8 @@ exports.printExcel =  asyncHandler(async (req, res) => {
         flot_adi: categoryCounts['فلوت عادي'][index],
         top_karft: categoryCounts['توب كرافت'][index]
       });
-      row.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '39a845' } };
+      row.font = { bold: true, color: { argb: '000000' } };
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F0DE89' } };
       row.border= {
         top: { style: 'thin', color: { argb: '000000' } },
         left: { style: 'thin', color: { argb: '000000' } },
