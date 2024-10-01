@@ -195,8 +195,8 @@ exports.generateAugustReport = async (req, res) => {
       {
         $match: {
           entry_date: {
-            $gte: new Date(new Date().getFullYear(), 7, 1),  // 1 أغسطس
-            $lt: new Date(new Date().getFullYear(), 7, 32)  // 31 أغسطس
+            $gte: new Date(new Date().getFullYear(), 9, 1),  // 1 أغسطس
+            $lt: new Date(new Date().getFullYear(), 9, 32)  // 31 أغسطس
           }
         }
       },
@@ -213,8 +213,8 @@ exports.generateAugustReport = async (req, res) => {
       {
         $match: {
           Entry_date: {
-            $gte: new Date(new Date().getFullYear(), 7, 1),  // 1 أغسطس
-            $lt: new Date(new Date().getFullYear(), 7, 32)   // 31 أغسطس
+            $gte: new Date(new Date().getFullYear(), 9, 1),  // 1 أغسطس
+            $lt: new Date(new Date().getFullYear(), 9, 32)   // 31 أغسطس
           }
         }
       },
