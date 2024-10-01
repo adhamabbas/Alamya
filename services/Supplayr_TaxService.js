@@ -62,3 +62,69 @@ exports.deleteTax_supplayr = asyncHandler(async (req, res, next) => {
     
     res.status(204).json({ data: null });
   });
+
+
+  exports.updateTax_supplayr = asyncHandler(async (req, res, next) => {
+    // جلب الوثيقة القديمة
+    const oldDocument = await Tax_supplayr.findById(req.params.id);
+  
+    if (!oldDocument) {
+      return next(new ApiError(`No document found for this ID: ${req.params.id}, 404`));
+    }
+  
+    // التحقق من التغييرات في الحقول
+    const discountChanged = req.body.discountAmount !== undefined && req.body.discountAmount !== oldDocument.discountAmount;
+    const taxChanged = req.body.taxAmount !== undefined && req.body.taxAmount !== oldDocument.taxAmount;
+    const netChanged = req.body.netAmount !== undefined && req.body.netAmount !== oldDocument.netAmount;
+  
+    // حفظ القيم القديمة لحساب الفرق
+    let oldDiscount = 0;
+    let oldTax = 0;
+    let oldNet = 0;
+  
+    if (discountChanged) {
+      oldDiscount = oldDocument.discountAmount;
+    }
+    if (taxChanged) {
+      oldTax = oldDocument.taxAmount;
+    }
+    if (netChanged) {
+      oldNet = oldDocument.netAmount;
+    }
+  
+    // تحديث الوثيقة في قاعدة البيانات
+    const document = await Tax_supplayr.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+  
+    if (!document) {
+      return next(new ApiError(`No document for this id ${req.params.id}, 404`));
+    }
+  
+    // إذا كان هناك تغيير، حساب الفرق وتحديث حساب المورد
+    if (discountChanged || taxChanged || netChanged) {
+      const newDiscount = req.body.discountAmount || oldDocument.discountAmount;
+      const newTax = req.body.taxAmount || oldDocument.taxAmount;
+      const newNet = req.body.netAmount || oldDocument.netAmount;
+  
+      // حساب الفرق لكل من الحقول
+      const discountDifference = newDiscount - oldDiscount;
+      const taxDifference = newTax - oldTax;
+      const netDifference = newNet - oldNet;
+  
+      // جلب المورد وتحديث حسابه بناءً على الفرق
+      const supplayr = await Supplayr.findById(document.supplayr);
+      if (supplayr) {
+        supplayr.price_pay -= netDifference;
+        supplayr.price_on += netDifference;
+        supplayr.total_price += netDifference;
+        supplayr.moneyOn_me += netDifference;
+        supplayr.dis_count = (supplayr.dis_count || 0) - (discountDifference !== 0 ? 1 : 0); // تحديث العداد إذا كان هناك تغيير في الخصم
+        await supplayr.save();
+      }
+    }
+  
+    // إعادة الاستجابة مع الوثيقة المحدثة
+    res.status(200).json({ data: document });
+  });
