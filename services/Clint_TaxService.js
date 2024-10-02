@@ -72,62 +72,62 @@ exports.deleteTax_clint = asyncHandler(async (req, res, next) => {
     // التحقق من التغييرات في الحقول
     const discountChanged = req.body.discountRate !== undefined && req.body.discountRate !== oldDocument.discountRate;
     const taxChanged = req.body.taxRate !== undefined && req.body.taxRate !== oldDocument.taxRate;
-    const amountChang = req.body.amount !== undefined && req.body.amount !== oldDocument.amount;
+    const amountChanged = req.body.amount !== undefined && req.body.amount !== oldDocument.amount;
 
-  
     // حفظ القيم القديمة لحساب الفرق
-    let oldDiscount = 0;
-    let oldTax = 0;
-    let oldAmount =0;
-  
+    let oldDiscount = oldDocument.discountAmount;
+    let oldTax = oldDocument.taxAmount;
+    let oldAmount = oldDocument.amount;
+
+    // إذا كان هناك تغيير، حساب القيم الجديدة
+    let newDiscount = oldDocument.discountRate;
+    let newTax = oldDocument.taxRate;
+    let newAmount = oldDocument.amount;
+
     if (discountChanged) {
-      oldDiscount = oldDocument.discountAmount;
+      newDiscount = req.body.discountRate;
     }
     if (taxChanged) {
-      oldTax = oldDocument.taxAmount;
+      newTax = req.body.taxRate;
     }
-   
-    if (amountChang) {
-      oldAmount = oldDocument.amount;
+    if (amountChanged) {
+      newAmount = req.body.amount;
     }
+
+    // حساب قيم الخصم والضرائب الجديدة
+    const newDiscountAmount = (newDiscount / 100) * newAmount;
+    const newTaxAmount = (newTax / 100) * newAmount;
+    const newNetAmount = newTaxAmount - newDiscountAmount;
+
     // تحديث الوثيقة في قاعدة البيانات
-    const document = await Tax_clint.findByIdAndUpdate(req.params.id, req.body, {
+    const document = await Tax_clint.findByIdAndUpdate(req.params.id, {
+      ...req.body,
+      discountAmount: newDiscountAmount,
+      taxAmount: newTaxAmount,
+      netAmount: newNetAmount
+    }, {
       new: true,
       runValidators: true,
     });
-  
+
     if (!document) {
       return next(new ApiError(`No document for this id ${req.params.id}, 404`));
     }
-  
-    // إذا كان هناك تغيير، حساب الفرق وتحديث حساب العميل
-    if (discountChanged || taxChanged || amountChang ) {
-      const newDiscount = req.body.discountRate || oldDocument.discountRate;
-      const newTax = req.body.taxRate || oldDocument.taxRate;
-      const newamount =req.body.amount || oldDocument.amount
-      
-       const ndisamount = ((newDiscount/100)* newamount);
-       const ntaxamount =((newTax/100)* newamount) ;
-      // حساب الفرق لكل من الحقول
-      const discountDifference = ndisamount - oldDiscount;
-      const taxDifference = ntaxamount - oldTax;
-      const netDifference = ntaxamount - ndisamount;
-  
-      // جلب العميل وتحديث حسابه بناءً على الفرق
-      const clint = await Clint.findById(document.clint);
-      if (clint) {
+
+    // حساب الفرق في القيم
+    const discountDifference = newDiscountAmount - oldDiscount;
+    const taxDifference = newTaxAmount - oldTax;
+    const netDifference = newNetAmount - (oldTax - oldDiscount);
+
+    // جلب العميل وتحديث حسابه بناءً على الفرق
+    const clint = await Clint.findById(document.clint);
+    if (clint) {
         clint.money_pay -= discountDifference;
         clint.money_on += taxDifference;
         clint.total_monye += netDifference;
         await clint.save();
-      }
-     if (oldDocument) {
-      oldDocument.discountAmount = ndisamount;
-      oldDocument.taxAmount= ntaxamount;
-      await oldDocument.save();
-     }
     }
-  
+
     // إعادة الاستجابة مع الوثيقة المحدثة
     res.status(200).json({ data: document });
-  });
+});
