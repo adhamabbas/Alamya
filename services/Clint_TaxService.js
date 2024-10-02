@@ -106,12 +106,12 @@ exports.deleteTax_clint = asyncHandler(async (req, res, next) => {
       const newTax = req.body.taxRate || oldDocument.taxRate;
       const newamount =req.body.amount || oldDocument.amount
       
-       const disamount = ((newDiscount/100)* newamount);
-       const taxamount =((newTax/100)* newamount) ;
+       const ndisamount = ((newDiscount/100)* newamount);
+       const ntaxamount =((newTax/100)* newamount) ;
       // حساب الفرق لكل من الحقول
-      const discountDifference = disamount - oldDiscount;
-      const taxDifference = taxamount - oldTax;
-      const netDifference = taxamount - disamount;
+      const discountDifference = ndisamount - oldDiscount;
+      const taxDifference = ntaxamount - oldTax;
+      const netDifference = ntaxamount - ndisamount;
   
       // جلب العميل وتحديث حسابه بناءً على الفرق
       const clint = await Clint.findById(document.clint);
@@ -121,7 +121,11 @@ exports.deleteTax_clint = asyncHandler(async (req, res, next) => {
         clint.total_monye += netDifference;
         await clint.save();
       }
-      
+     if (oldDocument) {
+      oldDocument.discountAmount = ndisamount;
+      oldDocument.taxAmount= ntaxamount;
+      await oldDocument.save();
+     }
     }
   
     // إعادة الاستجابة مع الوثيقة المحدثة
