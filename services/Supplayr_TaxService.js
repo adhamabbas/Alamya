@@ -67,64 +67,72 @@ exports.deleteTax_supplayr = asyncHandler(async (req, res, next) => {
   exports.updateTax_supplayr = asyncHandler(async (req, res, next) => {
     // جلب الوثيقة القديمة
     const oldDocument = await Tax_supplayr.findById(req.params.id);
-  
+
     if (!oldDocument) {
       return next(new ApiError(`No document found for this ID: ${req.params.id}, 404`));
     }
-  
+
     // التحقق من التغييرات في الحقول
-    const discountChanged = req.body.discountAmount !== undefined && req.body.discountAmount !== oldDocument.discountAmount;
-    const taxChanged = req.body.taxAmount !== undefined && req.body.taxAmount !== oldDocument.taxAmount;
-    const netChanged = req.body.netAmount !== undefined && req.body.netAmount !== oldDocument.netAmount;
-  
+    const discountChanged = req.body.discountRate !== undefined && req.body.discountRate !== oldDocument.discountRate;
+    const taxChanged = req.body.taxRate !== undefined && req.body.taxRate !== oldDocument.taxRate;
+    const amountChanged = req.body.amount !== undefined && req.body.amount !== oldDocument.amount;
+
     // حفظ القيم القديمة لحساب الفرق
-    let oldDiscount = 0;
-    let oldTax = 0;
-    let oldNet = 0;
-  
+    let oldDiscount = oldDocument.discountAmount;
+    let oldTax = oldDocument.taxAmount;
+    let oldAmount = oldDocument.amount;
+
+    // إذا كان هناك تغيير، حساب القيم الجديدة
+    let newDiscount = oldDocument.discountRate;
+    let newTax = oldDocument.taxRate;
+    let newAmount = oldDocument.amount;
+
     if (discountChanged) {
-      oldDiscount = oldDocument.discountAmount;
+      newDiscount = req.body.discountRate;
     }
     if (taxChanged) {
-      oldTax = oldDocument.taxAmount;
+      newTax = req.body.taxRate;
     }
-    if (netChanged) {
-      oldNet = oldDocument.netAmount;
+    if (amountChanged) {
+      newAmount = req.body.amount;
     }
-  
+
+    // حساب قيم الخصم والضرائب الجديدة
+    const newDiscountAmount = (newDiscount / 100) * newAmount;
+    const newTaxAmount = (newTax / 100) * newAmount;
+    const newNetAmount = newTaxAmount - newDiscountAmount;
+
     // تحديث الوثيقة في قاعدة البيانات
-    const document = await Tax_supplayr.findByIdAndUpdate(req.params.id, req.body, {
+    const document = await Tax_supplayr.findByIdAndUpdate(req.params.id, {
+      ...req.body,
+      discountAmount: newDiscountAmount,
+      taxAmount: newTaxAmount,
+      netAmount: newNetAmount
+    }, {
       new: true,
       runValidators: true,
     });
-  
+
     if (!document) {
       return next(new ApiError(`No document for this id ${req.params.id}, 404`));
     }
-  
-    // إذا كان هناك تغيير، حساب الفرق وتحديث حساب المورد
-    if (discountChanged || taxChanged || netChanged) {
-      const newDiscount = req.body.discountAmount || oldDocument.discountAmount;
-      const newTax = req.body.taxAmount || oldDocument.taxAmount;
-      const newNet = req.body.netAmount || oldDocument.netAmount;
-  
-      // حساب الفرق لكل من الحقول
-      const discountDifference = newDiscount - oldDiscount;
-      const taxDifference = newTax - oldTax;
-      const netDifference = newNet - oldNet;
-  
-      // جلب المورد وتحديث حسابه بناءً على الفرق
-      const supplayr = await Supplayr.findById(document.supplayr);
-      if (supplayr) {
+
+    // حساب الفرق في القيم
+    const discountDifference = newDiscountAmount - oldDiscount;
+    const taxDifference = newTaxAmount - oldTax;
+    const netDifference = newNetAmount - (oldTax - oldDiscount);
+
+    // جلب المورد وتحديث حسابه بناءً على الفرق
+    const supplayr = await Supplayr.findById(document.supplayr);
+    if (supplayr) {
         supplayr.price_pay -= netDifference;
         supplayr.price_on += netDifference;
         supplayr.total_price += netDifference;
         supplayr.moneyOn_me += netDifference;
-        supplayr.dis_count = (supplayr.dis_count || 0) - (discountDifference !== 0 ? 1 : 0); // تحديث العداد إذا كان هناك تغيير في الخصم
+        supplayr.dis_count = (supplayr.dis_count || 0) + (discountDifference !== 0 ? 1 : 0); // تحديث العداد إذا كان هناك تغيير في الخصم
         await supplayr.save();
-      }
     }
-  
+
     // إعادة الاستجابة مع الوثيقة المحدثة
     res.status(200).json({ data: document });
-  });
+});
