@@ -70,14 +70,15 @@ exports.deleteTax_clint = asyncHandler(async (req, res, next) => {
     }
   
     // التحقق من التغييرات في الحقول
-    const discountChanged = req.body.discountAmount !== undefined && req.body.discountAmount !== oldDocument.discountAmount;
-    const taxChanged = req.body.taxAmount !== undefined && req.body.taxAmount !== oldDocument.taxAmount;
-    const netChanged = req.body.netAmount !== undefined && req.body.netAmount !== oldDocument.netAmount;
+    const discountChanged = req.body.discountRate !== undefined && req.body.discountRate !== oldDocument.discountRate;
+    const taxChanged = req.body.taxRate !== undefined && req.body.taxRate !== oldDocument.taxRate;
+    const amountChang = req.body.amount !== undefined && req.body.amount !== oldDocument.amount;
+
   
     // حفظ القيم القديمة لحساب الفرق
     let oldDiscount = 0;
     let oldTax = 0;
-    let oldNet = 0;
+    let oldAmount =0;
   
     if (discountChanged) {
       oldDiscount = oldDocument.discountAmount;
@@ -85,10 +86,10 @@ exports.deleteTax_clint = asyncHandler(async (req, res, next) => {
     if (taxChanged) {
       oldTax = oldDocument.taxAmount;
     }
-    if (netChanged) {
-      oldNet = oldDocument.netAmount;
+   
+    if (amountChang) {
+      oldAmount = oldDocument.amount;
     }
-  
     // تحديث الوثيقة في قاعدة البيانات
     const document = await Tax_clint.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
@@ -100,15 +101,17 @@ exports.deleteTax_clint = asyncHandler(async (req, res, next) => {
     }
   
     // إذا كان هناك تغيير، حساب الفرق وتحديث حساب العميل
-    if (discountChanged || taxChanged || netChanged) {
-      const newDiscount = req.body.discountAmount || oldDocument.discountAmount;
-      const newTax = req.body.taxAmount || oldDocument.taxAmount;
-      const newNet = req.body.netAmount || oldDocument.netAmount;
-  
+    if (discountChanged || taxChanged || amountChang ) {
+      const newDiscount = req.body.discountRate || oldDocument.discountRate;
+      const newTax = req.body.taxRate || oldDocument.taxRate;
+      const newamount =req.body.amount || oldDocument.amount
+      
+       const disamount = ((newDiscount/100)* newamount);
+       const taxamount =((newTax/100)* newamount) ;
       // حساب الفرق لكل من الحقول
-      const discountDifference = newDiscount - oldDiscount;
-      const taxDifference = newTax - oldTax;
-      const netDifference = newNet - oldNet;
+      const discountDifference = disamount - oldDiscount;
+      const taxDifference = taxamount - oldTax;
+      const netDifference = taxamount - disamount;
   
       // جلب العميل وتحديث حسابه بناءً على الفرق
       const clint = await Clint.findById(document.clint);
@@ -118,6 +121,7 @@ exports.deleteTax_clint = asyncHandler(async (req, res, next) => {
         clint.total_monye += netDifference;
         await clint.save();
       }
+      
     }
   
     // إعادة الاستجابة مع الوثيقة المحدثة
