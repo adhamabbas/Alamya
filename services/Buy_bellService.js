@@ -92,10 +92,10 @@ exports.deleteBuy_bell = asyncHandler(async (req, res, next) => {
 
 
   exports.exportSupplierChecksToExcel = asyncHandler(async (req, res, next) => {
-    const { supplayrId } = req.params;
+    const allsupplayr = await Supplayr.find();;
   
-    if (!mongoose.Types.ObjectId.isValid(supplayrId)) {
-      return next(new ApiError('Invalid supplier ID', 400));
+    if (!allsupplayr.length) {
+      return next(new ApiError('Invalid supplier', 400));
     }
   
     // الحصول على جميع الفواتير الخاصة بالمورد والمدفوعة بواسطة الشيكات
