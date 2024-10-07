@@ -9,7 +9,11 @@ const clintSchema = new mongoose.Schema(
       trim: true,
       required: [true, 'name required'],
     },
-
+     
+    first_trade: {
+      type: Number,
+      default:0,
+    },
     money_on: {
       type: Number,
       required: true,
