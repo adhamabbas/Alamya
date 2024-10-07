@@ -95,6 +95,7 @@ exports.exportClientDetailsToExcel = asyncHandler(async (req, res, next) => {
     // إعداد بيانات المبيعات
     const allEntries = [];
     const money = sela[0]?.clint.money_on;
+    const firstTrade = sela[0]?.clint.first_trade ; // قيمة رصيد أول المدة
 
     const salesMap = {};
 
@@ -203,6 +204,15 @@ exports.exportClientDetailsToExcel = asyncHandler(async (req, res, next) => {
       row.font = { bold: true, color: { argb: 'FFFFFFFF' } };
       row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: entry.color } };
     });
+  
+     // إضافة الصف لرصيد أول المدة
+    const firstTradeRow = worksheet.addRow(['', '', '', '', 'رصيد أول المدة:']);
+    firstTradeRow.font = { bold: true };
+    firstTradeRow.alignment = { horizontal: 'right' };
+
+    const firstTradeBalanceRow = worksheet.addRow(['', '', '', '', firstTrade]);
+    firstTradeBalanceRow.font = { bold: true, color: { argb: 'FF000000' } };
+    firstTradeBalanceRow.alignment = { horizontal: 'right' };
 
     // إضافة الصف الأخير لرصيد العميل
     const finalRow = worksheet.addRow(['', '', '', '', 'الرصيد المتبقي:']);
