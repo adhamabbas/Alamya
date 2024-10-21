@@ -96,31 +96,6 @@ const categorizeProduct = (productName) => {
   }
 };
 
-  
-  
-  
-  
-
- const asyncHandler = require('express-async-handler');
-const ExcelJS = require('exceljs');
-const factory = require('./handlersFactory');
-const Warehouse = require('../models/WarehouseModel');
-
-// دالة تصنيف المنتج
-const categorizeProduct = (productName) => {
-  if (productName.includes('فلوت فاخر')) {
-    return 'فلوت فاخر';
-  } else if (productName.includes('تيست معالج')) {
-    return 'تيست معالج';
-  } else if (productName.includes('فلوت عادي')) {
-    return 'فلوت عادي';
-  } else if (productName.includes('توب كرافت')) {
-    return 'توب كرافت';
-  } else {
-    return null;
-  }
-};
-
 exports.printProductComparisonExcel = asyncHandler(async (req, res) => {
   let filter = {};
 
@@ -152,8 +127,8 @@ exports.printProductComparisonExcel = asyncHandler(async (req, res) => {
       if (sizeIndex !== -1) {
         categoryCounts[mainCategory][sizeIndex].count += 1;
         // التأكد من وجود 'product_code' قبل إضافته
-        if (doc.product.product_code) {
-          categoryCounts[mainCategory][sizeIndex].codes.push(doc.product.product_code);
+        if (doc.product_code) {
+          categoryCounts[mainCategory][sizeIndex].codes.push(doc.product_code);
         }
       }
     }
@@ -166,13 +141,13 @@ exports.printProductComparisonExcel = asyncHandler(async (req, res) => {
   // إضافة عناوين الأعمدة
   worksheet.columns = [
     { header: 'المقاس', key: 'size', width: 10 },
-    { header: 'فلوت فاخر', key: 'flot_fakhr', width: 15 },
+    { header: 'فلوت فاخر', key: 'flot_fakhr', width: 10 },
     { header: 'كود فلوت فاخر', key: 'flot_fakhr_codes', width: 30 },
-    { header: 'تيست معالج', key: 'test_moaleg', width: 15 },
+    { header: 'تيست معالج', key: 'test_moaleg', width: 10 },
     { header: 'كود تيست معالج', key: 'test_moaleg_codes', width: 30 },
-    { header: 'فلوت عادي', key: 'flot_adi', width: 15 },
+    { header: 'فلوت عادي', key: 'flot_adi', width: 10 },
     { header: 'كود فلوت عادي', key: 'flot_adi_codes', width: 30 },
-    { header: 'توب كرافت', key: 'top_karft', width: 15 },
+    { header: 'توب كرافت', key: 'top_karft', width: 10 },
     { header: 'كود توب كرافت', key: 'top_karft_codes', width: 30 }
   ];
 
