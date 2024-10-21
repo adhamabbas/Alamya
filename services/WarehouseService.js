@@ -82,6 +82,19 @@ exports.deleteWarehouse = factory.deleteOne(Warehouse);
   });*/
 
  
+const categorizeProduct = (productName) => {
+  if (productName.includes('فلوت فاخر')) {
+    return 'فلوت فاخر';
+  } else if (productName.includes('تيست معالج')) {
+    return 'تيست معالج';
+  } else if (productName.includes('فلوت عادي')) {
+    return 'فلوت عادي';
+  } else if (productName.includes('توب كرافت')) {
+    return 'توب كرافت';
+  } else {
+    return null;
+  }
+};
 
   
   
