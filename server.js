@@ -24,7 +24,7 @@ const app = express();
 
 // CORS configuration to allow any origin
 const corsOptions = {
-  origin: '*',
+  origin: 'https://alamia-project.netlify.app',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   preflightContinue: false,
   optionsSuccessStatus: 204
