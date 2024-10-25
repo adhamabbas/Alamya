@@ -24,7 +24,7 @@ const app = express();
 
 // CORS configuration to allow any origin
 const corsOptions = {
-  origin: 'https://alamia-project.netlify.app',
+  origin: '*',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   preflightContinue: false,
   optionsSuccessStatus: 204
@@ -33,7 +33,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 // compress all responses
-app.use(compression());
+//app.use(compression());
 
 // Checkout webhook
 
