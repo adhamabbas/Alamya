@@ -3,7 +3,7 @@ const path = require('path');
 const express = require('express');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
-const cors = require('cors');
+//const cors = require('cors');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
@@ -23,15 +23,15 @@ dbConnection();
 const app = express();
 
 // CORS configuration to allow any origin
-const corsOptions = {
+/*const corsOptions = {
   origin: '*',
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   preflightContinue: false,
   optionsSuccessStatus: 204
-};
+};*/
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+/*app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));*/
 // compress all responses
 //app.use(compression());
 
