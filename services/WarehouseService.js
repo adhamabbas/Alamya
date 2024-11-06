@@ -171,16 +171,16 @@ exports.deleteWarehouse = factory.deleteOne(Warehouse);
       const row = worksheet.addRow({
         size: size,
         flot_fakhr: flotFakhrCount,
-        flot_fakhr_codes: categoryCounts['فلوت فاخر'][index].codes.join('_') || 'لا توجد أكواد',
+        flot_fakhr_codes: categoryCounts['فلوت فاخر'][index].codes.join('/') || 'لا توجد أكواد',
         flot_fakhr_weight: flotFakhrWeight,
         test_moaleg: testMoalegCount,
-        test_moaleg_codes: categoryCounts['تيست معالج'][index].codes.join('_') || 'لا توجد أكواد',
+        test_moaleg_codes: categoryCounts['تيست معالج'][index].codes.join('/') || 'لا توجد أكواد',
         test_moaleg_weight: testMoalegWeight,
         flot_adi: flotAdiCount,
-        flot_adi_codes: categoryCounts['فلوت عادي'][index].codes.join('_') || 'لا توجد أكواد',
+        flot_adi_codes: categoryCounts['فلوت عادي'][index].codes.join('/') || 'لا توجد أكواد',
         flot_adi_weight: flotAdiWeight,
         top_karft: topKarftCount,
-        top_karft_codes: categoryCounts['توب كرافت'][index].codes.join('_') || 'لا توجد أكواد',
+        top_karft_codes: categoryCounts['توب كرافت'][index].codes.join('/') || 'لا توجد أكواد',
         top_karft_weight: topKarftWeight,
       });
       row.font = { bold: true, color: { argb: '000000' } };
