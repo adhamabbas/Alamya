@@ -11,7 +11,7 @@ const router = express.Router();
 
 router
   .route('/')
-  .post(authService.protect,authService.allowedTo('admin'),createReturnedCheck) // إنشاء شيك مرتجع جديد باستخدام اسم العميل
+  .post(/*authService.protect,authService.allowedTo('admin'),*/createReturnedCheck) // إنشاء شيك مرتجع جديد باستخدام اسم العميل
   .get(authService.protect,authService.allowedTo('admin'),getAllReturnedChecks); // الحصول على جميع الشيكات المرتجعة
 
 module.exports = router;
