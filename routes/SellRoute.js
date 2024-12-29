@@ -22,8 +22,8 @@ const router = express.Router();
 router
   .route('/')
   .get(
-       authService.protect,
-       authService.allowedTo('admin','storage_employee'),getSells)
+       /*authService.protect,
+       authService.allowedTo('admin','storage_employee'),*/getSells)
   .post(
     authService.protect,
     authService.allowedTo('admin','storage_employee'),
