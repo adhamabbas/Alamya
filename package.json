@@ -1,6 +1,6 @@
 {
   "name": "alamaya",
-  "version": "1.0.0",  // Ensure the value is properly quoted and closed
+  "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -27,7 +27,6 @@
     "mongoose": "^6.0.13",
     "morgan": "^1.10.0",
     "slugify": "^1.6.3",
-    "vercel": "^34.2.8",
     "xlsx": "^0.18.5",
     "xlsx-style": "^0.8.13"
   },
@@ -44,6 +43,6 @@
     "prettier": "^2.5.1"
   },
   "engines": {
-    "node": "^16.13.0"
+    "node": "16.x"
   }
 }
