@@ -1,6 +1,6 @@
 {
   "name": "alamaya",
-  "version": "1.0.0",
+  "version": "1.0.0",  // Ensure the value is properly quoted and closed
   "description": "",
   "main": "index.js",
   "scripts": {
