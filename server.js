@@ -2,7 +2,6 @@ const path = require('path');
 const express = require('express');
 const dotenv = require('dotenv');
 const morgan = require('morgan');
-const cors = require('cors');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
@@ -19,20 +18,6 @@ dbConnection();
 
 // Express app
 const app = express();
-
-// CORS configuration to allow any origin
-const corsOptions = {
-  origin: ['https://alamia-project.netlify.app'], // Allow all origins (for development purposes)
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-};
-
-// Apply CORS middleware globally
-app.use(cors(corsOptions));
-
-// Handle preflight requests
-app.options('*', cors(corsOptions));
 
 // Compress all responses
 app.use(compression());
