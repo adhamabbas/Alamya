@@ -17,7 +17,7 @@ router
   .route('/')
   .get(
     authService.protect,
-    authService.allowedTo('admin', 'storage_employee'),getWarehouses)
+    authService.allowedTo('admin2', 'storage_employee'),getWarehouses)
   .post(
     createWarehouse
   );
@@ -25,15 +25,15 @@ router
   .route('/:id')
   .get(
     authService.protect,
-    authService.allowedTo('admin', 'storage_employee'),getWarehouse)
+    authService.allowedTo('admin2', 'storage_employee'),getWarehouse)
   .put(
     authService.protect,
-    authService.allowedTo('admin'),
+    authService.allowedTo('admin2'),
     updateWarehouse
   )
   .delete(
     authService.protect,
-    authService.allowedTo('admin'),
+    authService.allowedTo('admin2'),
     deleteWarehouse
   );
  
